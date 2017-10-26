@@ -1,5 +1,6 @@
 package fu.hao.analysis;
 
+import fu.hao.utils.Log;
 import soot.*;
 import soot.jimple.DefinitionStmt;
 import soot.jimple.Stmt;
@@ -17,6 +18,7 @@ import java.util.Map;
  * @since 2017/10/25
  */
 public class MethodSummary {
+    public static final String TAG = "MethodSummay";
     private SootMethod method = null;
     private Map<String, String> reg2names = new HashMap<>();
     private Map<String, Stmt> name2stmts = new HashMap<>();
@@ -64,8 +66,8 @@ public class MethodSummary {
                     name2stmts.put(name, stmt);
                 }
             }
-
         }
+        Log.bb(TAG, reg2names);
     }
 
     public void interpretation(List<Stmt> stmtList) {
@@ -74,10 +76,20 @@ public class MethodSummary {
                 SootMethod sootMethod = stmt.getInvokeExpr().getMethod();
                 if (sootMethod.getName().equals("call") || sootMethod.getName().equals("callCurrent")) {
                     Value invokeExprValue = stmt.getInvokeExprBox().getValue();
-                    for (ValueBox valueBox : invokeExprValue.getUseBoxes()) {
-                        if (reg2names.containsKey(valueBox.getValue().toString())) {
-                            //tgtClass.getMethod()
-                            System.out.println(reg2names.get(valueBox.getValue().toString()) + "!");
+                    if (!stmt.getInvokeExpr().getMethod().isStatic()) {
+                        if (invokeExprValue.getUseBoxes().isEmpty()) {
+                            Log.err(TAG, "Cannot locate the invoking reg!");
+                        }
+
+                    }
+                    Value invokingReg = invokeExprValue.getUseBoxes().get(invokeExprValue.getUseBoxes().size() - 1).getValue();
+
+                    Log.bb(TAG, invokingReg + ", " + invokeExprValue);
+                    if (reg2names.containsKey(invokingReg.toString())) {
+                        //tgtClass.getMethod()
+                        Log.msg(TAG, reg2names.get(invokingReg.toString()) + ": " + stmt.getInvokeExpr().getArgs());
+                        for (Value arg : stmt.getInvokeExpr().getArgs()) {
+                            Log.bb(TAG, arg.getType());
                         }
                     }
                 }

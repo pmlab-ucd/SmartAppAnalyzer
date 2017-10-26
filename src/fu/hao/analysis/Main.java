@@ -13,6 +13,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import fu.hao.utils.Log;
+import fu.hao.utils.Settings;
 import soot.*;
 import soot.jimple.DefinitionStmt;
 import soot.jimple.InvokeExpr;
@@ -69,7 +71,7 @@ public class Main {
         return dataForwardTracer.getSlice();
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         //args = new String[] {"C:\\Users\\hfu\\Documents\\myclasses.jar", ""};
 
         //if (args.length == 0) {
@@ -79,6 +81,9 @@ public class Main {
 
         //System.out.println("Setting classpath to: " + args[0]);
         //Scene.v().setSootClassPath(args[0]);
+        Settings.setAppName("simple-auto-lock-door");
+        Settings.setOutputDirectory("output");
+        Settings.setLogLevel(0);
 
         String sep = File.separator;
         String pathSep = File.pathSeparator;
