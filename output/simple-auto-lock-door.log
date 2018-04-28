@@ -1,0 +1,10 @@
+MethodSummay - [BB]: {$r4="minutesLater", $r5="multiply", $r8="lockDoor", $r9="runIn"}
+MethodSummay - [BB]: $r5, interfaceinvoke $r5.<org.codehaus.groovy.runtime.callsite.CallSite: java.lang.Object call(java.lang.Object,java.lang.Object)>($r6, $r7)
+MethodSummay - [MSG]: "multiply": [$r6, $r7]
+MethodSummay - [BB]: java.lang.Object
+MethodSummay - [BB]: java.lang.Integer
+MethodSummay - [BB]: $r9, interfaceinvoke $r9.<org.codehaus.groovy.runtime.callsite.CallSite: java.lang.Object callCurrent(groovy.lang.GroovyObject,java.lang.Object,java.lang.Object)>(r0, r3, $r10)
+MethodSummay - [MSG]: "runIn": [r0, r3, $r10]
+MethodSummay - [BB]: simple-auto-lock-door
+MethodSummay - [BB]: java.lang.Object
+MethodSummay - [BB]: java.lang.Object
