@@ -16,7 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Description: Track the propagation of Event Listener in a class
+ * Description: Track the propagation of a call site value in a class
  *
  * @author Hao Fu(haofu@ucdavis.edu)
  * @since 11/9/2016

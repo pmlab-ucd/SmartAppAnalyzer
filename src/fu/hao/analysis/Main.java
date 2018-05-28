@@ -9,68 +9,21 @@
 package fu.hao.analysis;
 
 import java.io.File;
-import java.util.HashMap;
-import java.util.List;
+import java.util.Iterator;
 import java.util.Map;
 
-import fu.hao.utils.Log;
+import fu.hao.analysis.cg.CallGraphResolver;
 import fu.hao.utils.Settings;
 import soot.*;
-import soot.jimple.DefinitionStmt;
-import soot.jimple.InvokeExpr;
-import soot.jimple.Ref;
 import soot.jimple.Stmt;
 import soot.jimple.toolkits.callgraph.CallGraph;
+import soot.jimple.toolkits.callgraph.Edge;
 import soot.options.Options;
 import soot.toolkits.graph.ExceptionalUnitGraph;
 import soot.toolkits.graph.UnitGraph;
-import soot.toolkits.scalar.FlowSet;
-import groovy.lang.Script;
-import soot.util.Switch;
-
-import static soot.SootClass.SIGNATURES;
+import soot.SootMethod;
 
 public class Main {
-
-    public static Map<Integer, String> getCallSites(SootClass tgtClass) {
-        Map<Integer, String> callSites = new HashMap<>();
-        for (SootMethod method : tgtClass.getMethods()) {
-            if (!method.getName().contains("$createCallSiteArray_1")) {
-                continue;
-            }
-            System.out.println("method: " + method);
-            // 获得它的函数体
-            Body body = method.retrieveActiveBody();
-            // 生成函数的control flow graph
-            UnitGraph cfg = new ExceptionalUnitGraph(body);
-            for (Unit unit : cfg) {
-                Stmt stmt = (Stmt)unit;
-                Value lastVal = null;
-                for (int i = 0; i < stmt.getUseBoxes().size(); i++) {
-                    Value value = stmt.getUseBoxes().get(i).getValue();
-                    if (value.getType().toString().equals("java.lang.String")
-                            && lastVal != null && lastVal.getType().toString().contains("nt")) {
-                        callSites.put(Integer.parseInt(lastVal.toString()), value.toString());
-                    }
-                    lastVal = value;
-                }
-            }
-        }
-
-        return callSites;
-    }
-
-
-
-    public static List<Stmt> slicing(SootMethod method, Stmt tgtStmt) {
-        // 获得它的函数体
-        Body body = method.retrieveActiveBody();
-        // 生成函数的control flow graph
-        UnitGraph cfg = new ExceptionalUnitGraph(body);
-        DataForwardTracer dataForwardTracer = new DataForwardTracer(cfg, tgtStmt);
-        return dataForwardTracer.getSlice();
-    }
-
     public static void main(String[] args) throws Exception {
         //args = new String[] {"C:\\Users\\hfu\\Documents\\myclasses.jar", ""};
 
@@ -87,28 +40,46 @@ public class Main {
 
         String sep = File.separator;
         String pathSep = File.pathSeparator;
-        String path = System.getProperty("java.home") + sep + "lib" + sep
-                + "rt.jar";
+        String path = "libs/rt.jar"; //System.getProperty("java.home") + sep + "lib" + sep + "rt.jar";
         path += pathSep + "." + sep + "out\\production\\SmartAppAnalyzer";
-
-
         path += pathSep + "libs/groovy-all-2.2.0-beta-1.jar";
         //path += pathSep + args[0];
         Options.v().set_soot_classpath(path);
+
+        Options.v().set_on_the_fly(true);
+        Options.v().set_whole_program(true);
+        Options.v().set_allow_phantom_refs(true);
+        Options.v().setPhaseOption("cg.spark", "on");
+        PackManager.v().runPacks();
 
         // 载入MyClass类
         SootClass tgtClass = Scene.v().loadClassAndSupport("simple-auto-lock-door");
         // 把它作为我们要分析的类
         tgtClass.setApplicationClass();
         Scene.v().loadNecessaryClasses();
-        Map<Integer, String> callSites = Main.getCallSites(tgtClass);
+        Map<Integer, String> callSites = CallGraphResolver.getCallSites(tgtClass);
         System.out.println(callSites);
+        CallGraph callGraph = new CallGraph();
+
+
+
             // 找到它的myMethod函数
             //SootMethod method = tgtClass.getMethodByName("checkMotion");
+        // Iterate over the callgraph
+        for (Iterator<Edge> edgeIt = Scene.v().getCallGraph().iterator(); edgeIt.hasNext(); ) {
+            Edge edge = edgeIt.next();
+
+            SootMethod smSrc = edge.src();
+            Unit uSrc = edge.srcStmt();
+            SootMethod smDest = edge.tgt();
+
+            System.out.println("Edge from " + uSrc + " in " + smSrc + " to " + smDest);
+        }
         for (SootMethod method : tgtClass.getMethods()) {
             if (!method.getName().contains("doorOpen")) {
                 continue;
             }
+            /*
             MethodSummary methodSummary = new MethodSummary(method, callSites);
             for (String name : methodSummary.getName2stmts().keySet()) {
                 if (name.contains("minutesLater")) {
@@ -120,7 +91,8 @@ public class Main {
                     }
                     methodSummary.interpretation(slice);
                 }
-            }
+            } */
+            CallGraphResolver.addCallEdges(method, callSites);
             System.out.println("---------------------------------------");
             System.out.println("method: " + method);
             // 获得它的函数体
