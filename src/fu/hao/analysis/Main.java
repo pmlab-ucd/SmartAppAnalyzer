@@ -1,7 +1,7 @@
 /*
  * Warning:
- * This can only be executed correctly when using SOOTCLASSES　
- * and put the /bin/ as External Class folder suggested as 
+ * This can only be executed correctly when using SOOTCLASSES
+ * and put the /bin/ as External Class folder suggested as
  * http://stackoverflow.com/questions/20282481/loading-java-class-files-for-soot-dynamically-in-eclipse.
  * Not working anymore if use soot-trunk.jar as lib
  */
@@ -28,8 +28,8 @@ public class Main {
         //args = new String[] {"C:\\Users\\hfu\\Documents\\myclasses.jar", ""};
 
         //if (args.length == 0) {
-            //System.out.println("Usage: java RunLiveAnalysis class_to_analyse");
-            //System.exit(0);
+        //System.out.println("Usage: java RunLiveAnalysis class_to_analyse");
+        //System.exit(0);
         //}
 
         //System.out.println("Setting classpath to: " + args[0]);
@@ -62,9 +62,8 @@ public class Main {
         CallGraph callGraph = new CallGraph();
 
 
-
-            // 找到它的myMethod函数
-            //SootMethod method = tgtClass.getMethodByName("checkMotion");
+        // 找到它的myMethod函数
+        //SootMethod method = tgtClass.getMethodByName("checkMotion");
         // Iterate over the callgraph
         for (Iterator<Edge> edgeIt = Scene.v().getCallGraph().iterator(); edgeIt.hasNext(); ) {
             Edge edge = edgeIt.next();
@@ -79,20 +78,7 @@ public class Main {
             if (!method.getName().contains("doorOpen")) {
                 continue;
             }
-            /*
-            MethodSummary methodSummary = new MethodSummary(method, callSites);
-            for (String name : methodSummary.getName2stmts().keySet()) {
-                if (name.contains("minutesLater")) {
-                    System.out.println("stmt: " + methodSummary.getName2stmts().get(name));
-                    List<Stmt> slice = slicing(method, methodSummary.getName2stmts().get(name));
 
-                    for (Stmt stmt : slice) {
-                        System.out.println(stmt);
-                    }
-                    methodSummary.interpretation(slice);
-                }
-            } */
-            CallGraphResolver.addCallEdges(method, callSites);
             System.out.println("---------------------------------------");
             System.out.println("method: " + method);
             // 获得它的函数体
@@ -112,11 +98,24 @@ public class Main {
                 //System.out.println("---------------------------------------");
                 unit.toString(up);
                 System.out.println(up.output());
-                Stmt stmt = (Stmt)unit;
+                Stmt stmt = (Stmt) unit;
                 if (stmt.containsInvokeExpr()) {
                     stmt.getInvokeExpr().getMethod();
                 }
 
+            /*
+            MethodSummary methodSummary = new MethodSummary(method, callSites);
+            for (String name : methodSummary.getName2stmts().keySet()) {
+                if (name.contains("minutesLater")) {
+                    System.out.println("stmt: " + methodSummary.getName2stmts().get(name));
+                    List<Stmt> slice = slicing(method, methodSummary.getName2stmts().get(name));
+
+                    for (Stmt stmt : slice) {
+                        System.out.println(stmt);
+                    }
+                    methodSummary.interpretation(slice);
+                }
+            } */
 
             /*
             if (!before.isEmpty()) {
@@ -142,6 +141,8 @@ public class Main {
             System.out.println("}");
             System.out.println("---------------------------------------");*/
             }
+
+            CallGraphResolver.addCallEdges(callGraph, method, callSites);
         }
     }
 

@@ -1,33 +1,40 @@
 package fu.hao.analysis.cg;
 
+import fu.hao.utils.Log;
 import soot.*;
-import soot.jimple.AssignStmt;
-import soot.jimple.DefinitionStmt;
-import soot.jimple.InvokeExpr;
-import soot.jimple.Stmt;
+import soot.jimple.*;
+import soot.jimple.toolkits.callgraph.CallGraph;
+import soot.jimple.toolkits.callgraph.Edge;
 import soot.toolkits.graph.DirectedGraph;
 import soot.toolkits.scalar.ArraySparseSet;
 import soot.toolkits.scalar.FlowSet;
 import soot.toolkits.scalar.ForwardFlowAnalysis;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 /**
- * Description: Track the propagation of a call site value in a class
- *
+ * Description: Track the propagation of a call site value in a class.
+ * If it invokes a call such as $r5.<org.codehaus.groovy.runtime.callsite.CallSite: java.lang.Object call(java.lang.Object,java.lang.Object)>($r6, $r7),
+ * instrument a virtual direct call use the call site name, such as multiply(r6, r7) and add the edge to the cg.
  * @author Hao Fu(haofu@ucdavis.edu)
  * @since 11/9/2016
  */
 public class CallSiteRegTracker extends ForwardFlowAnalysis<Object, Object> {
+    private static final String TAG = "CallSiteRegTracker";
+
     private Stmt srcStmt;
+    private CallGraph callGraph;
+    private SootMethod thisMethod;
+    private String name;
 
     @SuppressWarnings("unchecked")
-    public CallSiteRegTracker(DirectedGraph<?> exceptionalUnitGraph, Stmt srcStmt) {
+    public CallSiteRegTracker(DirectedGraph<?> exceptionalUnitGraph, Stmt srcStmt, String name, SootMethod thisMethod, CallGraph callGraph) {
         // Use superclass's constructor.
         super((DirectedGraph<Object>) exceptionalUnitGraph);
         this.srcStmt = srcStmt;
+        this.callGraph = callGraph;
+        this.thisMethod = thisMethod;
+        this.name = name;
         doAnalysis();
     }
 
@@ -36,6 +43,7 @@ public class CallSiteRegTracker extends ForwardFlowAnalysis<Object, Object> {
         return new ArraySparseSet();
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     protected void copy(Object src, Object dest) {
         FlowSet srcSet = (FlowSet) src,
@@ -48,17 +56,20 @@ public class CallSiteRegTracker extends ForwardFlowAnalysis<Object, Object> {
         return new ArraySparseSet();
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     protected void flowThrough(Object in, Object node, Object out) {
         Unit unit = (Unit) node;
-        FlowSet<Value> inSet = (FlowSet<Value>) in,
-                outSet = (FlowSet<Value>) out;
-        checkBefore(unit, inSet, outSet);
-        if (!gen(inSet, unit, outSet)) {
-            kill(unit, outSet);
-        }
+        if (in instanceof FlowSet && out instanceof FlowSet) {
+            FlowSet<Value> inSet = (FlowSet<Value>) in;
+            FlowSet<Value> outSet = (FlowSet<Value>) out;
+            checkBefore(unit, inSet, outSet);
+            if (!gen(inSet, unit, outSet)) {
+                kill(unit, outSet);
+            }
 
-        checkAfter(unit, outSet);
+            checkAfter(unit, outSet);
+        }
     }
 
     /*
@@ -77,29 +88,52 @@ public class CallSiteRegTracker extends ForwardFlowAnalysis<Object, Object> {
         }
     }
 
-    protected void checkBefore(Unit unit, FlowSet inSet, FlowSet outSet) {
+    private void checkBefore(Unit unit, FlowSet inSet, FlowSet outSet) {
 
     }
 
-
-    protected void checkAfter(Unit unit, FlowSet<Value> outSet) {
+    /**
+     * If the call site reg invokes a call, add a new call graph edge.
+     * @param unit current statement
+     * @param outSet output set
+     */
+    private void checkAfter(Unit unit, FlowSet<Value> outSet) {
         Stmt stmt = (Stmt)unit;
         if (stmt.containsInvokeExpr()) {
             SootMethod sootMethod = stmt.getInvokeExpr().getMethod();
             if (sootMethod.getName().equals("call")) {
-                List<ValueBox> boxes = stmt.getInvokeExprBox().getValue().getUseBoxes();
-                if (boxes.size() > 0 && outSet.contains(boxes.get(0).getValue())) {
-                    System.out.println("calling ");
+                List<ValueBox> boxes = stmt.getInvokeExpr().getUseBoxes();
+                Value caller;
+                if (boxes.size() > 0) {
+                    caller = boxes.get(boxes.size() - 1).getValue();
+                } else {
+                    throw new RuntimeException("Not a valid Groovy call: " + stmt);
                 }
-
+                Log.msg(TAG, caller + ", " + stmt.getInvokeExpr() + ", " + stmt.getInvokeExprBox().getValue().getUseBoxes());
+                if (outSet.contains(caller)) {
+                    SootMethod callee;
+                    try {
+                        callee = thisMethod.getDeclaringClass().getMethod(name, sootMethod.getParameterTypes());
+                    } catch (RuntimeException e) {
+                        callee = new SootMethod(name, sootMethod.getParameterTypes(), sootMethod.getReturnType());
+                        callee.setDeclaringClass(thisMethod.getDeclaringClass());
+                        callee.setDeclared(true);
+                    }
+                    Stmt newInvoke = (Stmt) stmt.clone();
+                    newInvoke.getInvokeExpr().setMethodRef(callee.makeRef());
+                    Edge edge = new Edge(thisMethod, newInvoke, callee);
+                    callGraph.addEdge(edge);
+                    Log.msg(TAG, "calling " + callee + ", " + newInvoke);
+                }
             }
         }
     }
 
+    @SuppressWarnings("unchecked")
     /*
      * add vars possibly tainted
      */
-    protected boolean gen(Object in, Object node, Object out) {
+    private boolean gen(Object in, Object node, Object out) {
         FlowSet inSet = (FlowSet)in,
                 outSet = (FlowSet)out;
         Unit unit = (Unit)node;
@@ -110,7 +144,7 @@ public class CallSiteRegTracker extends ForwardFlowAnalysis<Object, Object> {
         if (unit instanceof AssignStmt) {
             // if returned by source()
             if (unit.equals(srcStmt)) {
-                System.out.print("Found Source! " + unit);
+                Log.msg(TAG, "Found Source! " + unit);
                 addDefBox(unit, outSet);
                 hasTainted = true;
             }
@@ -128,6 +162,7 @@ public class CallSiteRegTracker extends ForwardFlowAnalysis<Object, Object> {
         return hasTainted;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     protected void merge(Object in1, Object in2, Object out) {
         FlowSet inSet1 = (FlowSet) in1,
@@ -148,7 +183,8 @@ public class CallSiteRegTracker extends ForwardFlowAnalysis<Object, Object> {
         return ((ArraySparseSet) getFlowBefore(s)).toList();
     }
 
-    protected void addDefBox(Unit unit, FlowSet outSet) {
+    @SuppressWarnings("unchecked")
+    private void addDefBox(Unit unit, FlowSet outSet) {
         for (ValueBox defBox : unit.getDefBoxes()) {
             Value value = defBox.getValue();
             if (value instanceof Local) {
@@ -157,6 +193,7 @@ public class CallSiteRegTracker extends ForwardFlowAnalysis<Object, Object> {
         }
     }
 
+    @SuppressWarnings("unchecked")
     protected boolean leftTaintedAsRightTainted(Unit unit, FlowSet inSet, FlowSet outSet) {
         for (ValueBox useBox : unit.getUseBoxes()) {
             Value useVal = useBox.getValue();

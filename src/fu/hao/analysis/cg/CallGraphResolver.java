@@ -6,6 +6,7 @@ import heros.solver.Pair;
 import soot.*;
 import soot.jimple.DefinitionStmt;
 import soot.jimple.Stmt;
+import soot.jimple.toolkits.callgraph.CallGraph;
 import soot.toolkits.graph.ExceptionalUnitGraph;
 import soot.toolkits.graph.UnitGraph;
 
@@ -136,7 +137,7 @@ public class CallGraphResolver {
         return dataForwardTracer.getSlice();
     }
 
-    public static void addCallEdges(SootMethod method, Map<Integer, String> callSites) {
+    public static void addCallEdges(CallGraph callGraph, SootMethod method, Map<Integer, String> callSites) {
         Value callSiteReg = getCallSiteReg(method);
         if (callSiteReg == null) {
             return;
@@ -151,17 +152,17 @@ public class CallGraphResolver {
             if (stmt instanceof DefinitionStmt) {
                 DefinitionStmt definitionStmt = (DefinitionStmt) stmt;
                 if (definitionStmt.getRightOp().toString().contains(callSiteReg.toString() + "[")) {
-                    List<Stmt> slice = slicing(method, stmt);
                     String index = definitionStmt.getRightOp().toString();
                     index = index.substring(index.indexOf("[") + 1, index.indexOf("]"));
                     String name = callSites.get(Integer.parseInt(index));
+                    Log.bb(TAG, index + ", " + name);
                     //System.out.println(definitionStmt.getLeftOp() + "=" + definitionStmt.getRightOp() + ", " + name);
-
-                    CallSiteRegTracker callSiteRegTracker = new CallSiteRegTracker(cfg, stmt);
+                    CallSiteRegTracker callSiteRegTracker = new CallSiteRegTracker(cfg, stmt, name, method, callGraph);
                 }
             }
         }
     }
+
 
     /*
     public static void interpretation(List<Stmt> stmtList) {
