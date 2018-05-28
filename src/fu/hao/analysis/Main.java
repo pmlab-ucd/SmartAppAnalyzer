@@ -13,6 +13,7 @@ import java.util.Iterator;
 import java.util.Map;
 
 import fu.hao.analysis.cg.CallGraphResolver;
+import fu.hao.utils.Log;
 import fu.hao.utils.Settings;
 import soot.*;
 import soot.jimple.Stmt;
@@ -24,6 +25,9 @@ import soot.toolkits.graph.UnitGraph;
 import soot.SootMethod;
 
 public class Main {
+
+    private static final String TAG = "MAIN";
+
     public static void main(String[] args) throws Exception {
         //args = new String[] {"C:\\Users\\hfu\\Documents\\myclasses.jar", ""};
 
@@ -60,20 +64,11 @@ public class Main {
         Map<Integer, String> callSites = CallGraphResolver.getCallSites(tgtClass);
         System.out.println(callSites);
         CallGraph callGraph = new CallGraph();
+        Scene.v().setCallGraph(callGraph);
 
 
         // 找到它的myMethod函数
         //SootMethod method = tgtClass.getMethodByName("checkMotion");
-        // Iterate over the callgraph
-        for (Iterator<Edge> edgeIt = Scene.v().getCallGraph().iterator(); edgeIt.hasNext(); ) {
-            Edge edge = edgeIt.next();
-
-            SootMethod smSrc = edge.src();
-            Unit uSrc = edge.srcStmt();
-            SootMethod smDest = edge.tgt();
-
-            System.out.println("Edge from " + uSrc + " in " + smSrc + " to " + smDest);
-        }
         for (SootMethod method : tgtClass.getMethods()) {
             if (!method.getName().contains("doorOpen")) {
                 continue;
@@ -143,6 +138,17 @@ public class Main {
             }
 
             CallGraphResolver.addCallEdges(callGraph, method, callSites);
+        }
+
+        // Iterate over the callgraph
+        for (Iterator<Edge> edgeIt = Scene.v().getCallGraph().iterator(); edgeIt.hasNext(); ) {
+            Edge edge = edgeIt.next();
+
+            SootMethod smSrc = edge.src();
+            Unit uSrc = edge.srcStmt();
+            SootMethod smDest = edge.tgt();
+
+            Log.msg(TAG, "Edge from " + uSrc + " in " + smSrc + " to " + smDest);
         }
     }
 

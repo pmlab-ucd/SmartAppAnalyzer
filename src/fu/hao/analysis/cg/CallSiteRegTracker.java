@@ -10,7 +10,9 @@ import soot.toolkits.scalar.ArraySparseSet;
 import soot.toolkits.scalar.FlowSet;
 import soot.toolkits.scalar.ForwardFlowAnalysis;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Description: Track the propagation of a call site value in a class.
@@ -24,16 +26,15 @@ public class CallSiteRegTracker extends ForwardFlowAnalysis<Object, Object> {
     private static final String TAG = "CallSiteRegTracker";
 
     private Stmt srcStmt;
-    private CallGraph callGraph;
     private SootMethod thisMethod;
     private String name;
+    private static Map<Stmt, Stmt> old2NewCalls = new HashMap<>();
 
     @SuppressWarnings("unchecked")
-    public CallSiteRegTracker(DirectedGraph<?> exceptionalUnitGraph, Stmt srcStmt, String name, SootMethod thisMethod, CallGraph callGraph) {
+    public CallSiteRegTracker(DirectedGraph<?> exceptionalUnitGraph, Stmt srcStmt, String name, SootMethod thisMethod) {
         // Use superclass's constructor.
         super((DirectedGraph<Object>) exceptionalUnitGraph);
         this.srcStmt = srcStmt;
-        this.callGraph = callGraph;
         this.thisMethod = thisMethod;
         this.name = name;
         doAnalysis();
@@ -121,10 +122,11 @@ public class CallSiteRegTracker extends ForwardFlowAnalysis<Object, Object> {
                         callee.setDeclaringClass(thisMethod.getDeclaringClass());
                         callee.setDeclared(true);
                     }
+
+                    //Stmt newInvoke = Jimple.v().newInvokeStmt(Jimple.v().newVirtualInvokeExpr((Local) caller, callee.makeRef(), stmt.getInvokeExpr().getArgs()));
                     Stmt newInvoke = (Stmt) stmt.clone();
                     newInvoke.getInvokeExpr().setMethodRef(callee.makeRef());
-                    Edge edge = new Edge(thisMethod, newInvoke, callee);
-                    callGraph.addEdge(edge);
+                    old2NewCalls.put(stmt, newInvoke);
                     Log.msg(TAG, "calling " + callee + ", " + newInvoke);
                 }
             }
@@ -208,4 +210,7 @@ public class CallSiteRegTracker extends ForwardFlowAnalysis<Object, Object> {
         return false;
     }
 
+    public static Map<Stmt, Stmt> getOld2NewCalls() {
+        return old2NewCalls;
+    }
 }

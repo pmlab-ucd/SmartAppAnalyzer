@@ -7,10 +7,13 @@ import soot.*;
 import soot.jimple.DefinitionStmt;
 import soot.jimple.Stmt;
 import soot.jimple.toolkits.callgraph.CallGraph;
+import soot.jimple.toolkits.callgraph.Edge;
 import soot.toolkits.graph.ExceptionalUnitGraph;
 import soot.toolkits.graph.UnitGraph;
 
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Resolve the call graph of the given groovy class.
@@ -61,7 +64,7 @@ public class CallGraphResolver {
                         Value value = stmt.getUseBoxes().get(i).getValue();
                         if (value.getType().toString().equals("java.lang.String")
                                 && lastVal != null && lastVal.getType().toString().contains("nt")) {
-                            callSites.put(Integer.parseInt(lastVal.toString()), value.toString());
+                            callSites.put(Integer.parseInt(lastVal.toString()), pureName(value.toString()));
                         }
                         lastVal = value;
                     }
@@ -137,6 +140,15 @@ public class CallGraphResolver {
         return dataForwardTracer.getSlice();
     }
 
+    private static String pureName(String name) {
+        Pattern p = Pattern.compile("\"([^\"]*)\"");
+        Matcher m = p.matcher(name);
+        while (m.find()) {
+            return(m.group(1));
+        }
+        return "";
+    }
+
     public static void addCallEdges(CallGraph callGraph, SootMethod method, Map<Integer, String> callSites) {
         Value callSiteReg = getCallSiteReg(method);
         if (callSiteReg == null) {
@@ -157,8 +169,20 @@ public class CallGraphResolver {
                     String name = callSites.get(Integer.parseInt(index));
                     Log.bb(TAG, index + ", " + name);
                     //System.out.println(definitionStmt.getLeftOp() + "=" + definitionStmt.getRightOp() + ", " + name);
-                    CallSiteRegTracker callSiteRegTracker = new CallSiteRegTracker(cfg, stmt, name, method, callGraph);
+                    CallSiteRegTracker callSiteRegTracker = new CallSiteRegTracker(cfg, stmt, name, method);
                 }
+            }
+        }
+
+
+        for (Stmt old : CallSiteRegTracker.getOld2NewCalls().keySet()) {
+            Stmt newInvoke = CallSiteRegTracker.getOld2NewCalls().get(old);
+            body.getUnits().insertAfter(newInvoke, old);
+            Edge edge = new Edge(method, newInvoke, newInvoke.getInvokeExpr().getMethod());
+            callGraph.addEdge(edge);
+            for (Unit unit : cfg) {
+                Stmt stmt = (Stmt) unit;
+                Log.msg(TAG, stmt + ", " + stmt.hashCode());
             }
         }
     }
