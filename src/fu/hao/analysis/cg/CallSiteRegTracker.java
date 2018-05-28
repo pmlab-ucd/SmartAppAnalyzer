@@ -16,6 +16,7 @@ import java.util.List;
  * Description: Track the propagation of a call site value in a class.
  * If it invokes a call such as $r5.<org.codehaus.groovy.runtime.callsite.CallSite: java.lang.Object call(java.lang.Object,java.lang.Object)>($r6, $r7),
  * instrument a virtual direct call use the call site name, such as multiply(r6, r7) and add the edge to the cg.
+ *
  * @author Hao Fu(haofu@ucdavis.edu)
  * @since 11/9/2016
  */
@@ -76,7 +77,7 @@ public class CallSiteRegTracker extends ForwardFlowAnalysis<Object, Object> {
      * rm tainted var who has been assigned value from un-tainted
      */
     private void kill(Object node, FlowSet<Value> outSet) {
-        Unit unit = (Unit)node;
+        Unit unit = (Unit) node;
         if (unit instanceof AssignStmt) {
             for (ValueBox defBox : unit.getDefBoxes()) {
                 Value value = defBox.getValue();
@@ -94,14 +95,15 @@ public class CallSiteRegTracker extends ForwardFlowAnalysis<Object, Object> {
 
     /**
      * If the call site reg invokes a call, add a new call graph edge.
-     * @param unit current statement
+     *
+     * @param unit   current statement
      * @param outSet output set
      */
     private void checkAfter(Unit unit, FlowSet<Value> outSet) {
-        Stmt stmt = (Stmt)unit;
+        Stmt stmt = (Stmt) unit;
         if (stmt.containsInvokeExpr()) {
             SootMethod sootMethod = stmt.getInvokeExpr().getMethod();
-            if (sootMethod.getName().equals("call")) {
+            if (sootMethod.getName().matches("call|callCurrent")) {
                 List<ValueBox> boxes = stmt.getInvokeExpr().getUseBoxes();
                 Value caller;
                 if (boxes.size() > 0) {
@@ -109,8 +111,8 @@ public class CallSiteRegTracker extends ForwardFlowAnalysis<Object, Object> {
                 } else {
                     throw new RuntimeException("Not a valid Groovy call: " + stmt);
                 }
-                Log.msg(TAG, caller + ", " + stmt.getInvokeExpr() + ", " + stmt.getInvokeExprBox().getValue().getUseBoxes());
                 if (outSet.contains(caller)) {
+                    Log.msg(TAG, caller + ", " + stmt.getInvokeExpr() + ", " + stmt.getInvokeExprBox().getValue().getUseBoxes());
                     SootMethod callee;
                     try {
                         callee = thisMethod.getDeclaringClass().getMethod(name, sootMethod.getParameterTypes());
@@ -134,12 +136,12 @@ public class CallSiteRegTracker extends ForwardFlowAnalysis<Object, Object> {
      * add vars possibly tainted
      */
     private boolean gen(Object in, Object node, Object out) {
-        FlowSet inSet = (FlowSet)in,
-                outSet = (FlowSet)out;
-        Unit unit = (Unit)node;
+        FlowSet inSet = (FlowSet) in,
+                outSet = (FlowSet) out;
+        Unit unit = (Unit) node;
         copy(inSet, outSet);
         boolean hasTainted = false;
-        Stmt stmt = (Stmt)unit;
+        Stmt stmt = (Stmt) unit;
 
         if (unit instanceof AssignStmt) {
             // if returned by source()
