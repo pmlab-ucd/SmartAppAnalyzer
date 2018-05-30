@@ -70,7 +70,7 @@ public class Main {
         // 找到它的myMethod函数
         //SootMethod method = tgtClass.getMethodByName("checkMotion");
         for (SootMethod method : tgtClass.getMethods()) {
-            if (!method.getName().contains("doorOpen")) {
+            if (method.getName().contains("CallSiteArray") || method.getName().matches("run")) {
                 continue;
             }
 
@@ -92,7 +92,7 @@ public class Main {
 
                 //System.out.println("---------------------------------------");
                 unit.toString(up);
-                System.out.println(up.output());
+                System.out.println(up.output() + ", " + up.hashCode());
                 Stmt stmt = (Stmt) unit;
                 if (stmt.containsInvokeExpr()) {
                     stmt.getInvokeExpr().getMethod();

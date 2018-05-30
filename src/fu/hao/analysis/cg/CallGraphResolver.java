@@ -140,6 +140,11 @@ public class CallGraphResolver {
         return dataForwardTracer.getSlice();
     }
 
+    /**
+     * The call site stores elements with quotes such as 0="runScript", remove the quotes: 0=runScript.
+     * @param name
+     * @return
+     */
     private static String pureName(String name) {
         Pattern p = Pattern.compile("\"([^\"]*)\"");
         Matcher m = p.matcher(name);
@@ -149,6 +154,14 @@ public class CallGraphResolver {
         return "";
     }
 
+    /**
+     * Add the call edges by "replacing" groovy.runtime.callsite.CallSite::call/callCurrent to the referred real call.
+     * If it invokes a call such as $r5.<org.codehaus.groovy.runtime.callsite.CallSite: java.lang.Object call(java.lang.Object,java.lang.Object)>($r6, $r7),
+     * instrument a virtual direct call use the call site name, such as multiply(r6, r7) and add the edge to the cg.
+     * @param callGraph
+     * @param method
+     * @param callSites
+     */
     public static void addCallEdges(CallGraph callGraph, SootMethod method, Map<Integer, String> callSites) {
         Value callSiteReg = getCallSiteReg(method);
         if (callSiteReg == null) {
@@ -158,7 +171,7 @@ public class CallGraphResolver {
         Body body = method.retrieveActiveBody();
         // 生成函数的control flow graph
         UnitGraph cfg = new ExceptionalUnitGraph(body);
-
+        Map<Stmt, Stmt> old2New = new HashMap<>();
         for (Unit unit : cfg) {
             Stmt stmt = (Stmt)unit;
             if (stmt instanceof DefinitionStmt) {
@@ -170,13 +183,14 @@ public class CallGraphResolver {
                     Log.bb(TAG, index + ", " + name);
                     //System.out.println(definitionStmt.getLeftOp() + "=" + definitionStmt.getRightOp() + ", " + name);
                     CallSiteRegTracker callSiteRegTracker = new CallSiteRegTracker(cfg, stmt, name, method);
+                    old2New.putAll(callSiteRegTracker.getOld2NewCalls());
                 }
             }
         }
 
-
-        for (Stmt old : CallSiteRegTracker.getOld2NewCalls().keySet()) {
-            Stmt newInvoke = CallSiteRegTracker.getOld2NewCalls().get(old);
+        for (Stmt old : old2New.keySet()) {
+            Stmt newInvoke = old2New.get(old);
+            Log.msg(TAG, old.hashCode());
             body.getUnits().insertAfter(newInvoke, old);
             Edge edge = new Edge(method, newInvoke, newInvoke.getInvokeExpr().getMethod());
             callGraph.addEdge(edge);
@@ -186,7 +200,6 @@ public class CallGraphResolver {
             }
         }
     }
-
 
     /*
     public static void interpretation(List<Stmt> stmtList) {

@@ -17,7 +17,7 @@ import java.util.Map;
 /**
  * Description: Track the propagation of a call site value in a class.
  * If it invokes a call such as $r5.<org.codehaus.groovy.runtime.callsite.CallSite: java.lang.Object call(java.lang.Object,java.lang.Object)>($r6, $r7),
- * instrument a virtual direct call use the call site name, such as multiply(r6, r7) and add the edge to the cg.
+ * return a virtual direct call use the call site name, such as multiply(r6, r7).
  *
  * @author Hao Fu(haofu@ucdavis.edu)
  * @since 11/9/2016
@@ -28,7 +28,10 @@ public class CallSiteRegTracker extends ForwardFlowAnalysis<Object, Object> {
     private Stmt srcStmt;
     private SootMethod thisMethod;
     private String name;
-    private static Map<Stmt, Stmt> old2NewCalls = new HashMap<>();
+    /**
+     * The map stores the relationships between the old groovy call and the new referred invocation.
+     */
+    private Map<Stmt, Stmt> old2NewCalls = new HashMap<>();
 
     @SuppressWarnings("unchecked")
     public CallSiteRegTracker(DirectedGraph<?> exceptionalUnitGraph, Stmt srcStmt, String name, SootMethod thisMethod) {
@@ -96,7 +99,6 @@ public class CallSiteRegTracker extends ForwardFlowAnalysis<Object, Object> {
 
     /**
      * If the call site reg invokes a call, add a new call graph edge.
-     *
      * @param unit   current statement
      * @param outSet output set
      */
@@ -210,7 +212,7 @@ public class CallSiteRegTracker extends ForwardFlowAnalysis<Object, Object> {
         return false;
     }
 
-    public static Map<Stmt, Stmt> getOld2NewCalls() {
+    public Map<Stmt, Stmt> getOld2NewCalls() {
         return old2NewCalls;
     }
 }
