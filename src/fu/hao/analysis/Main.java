@@ -44,9 +44,9 @@ public class Main {
 
         String sep = File.separator;
         String pathSep = File.pathSeparator;
-        String path = "libs/rt.jar"; //System.getProperty("java.home") + sep + "lib" + sep + "rt.jar";
+        String path = "lib/rt.jar"; //System.getProperty("java.home") + sep + "lib" + sep + "rt.jar";
         path += pathSep + "." + sep + "out\\production\\SmartAppAnalyzer";
-        path += pathSep + "libs/groovy-all-2.2.0-beta-1.jar";
+        path += pathSep + "lib/groovy-all-2.2.0-beta-1.jar";
         //path += pathSep + args[0];
         Options.v().set_soot_classpath(path);
 
