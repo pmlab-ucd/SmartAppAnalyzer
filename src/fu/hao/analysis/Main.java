@@ -73,20 +73,17 @@ public class Main {
     }
 
     public static void main(String[] args) throws Exception {
-        //args = new String[] {"C:\\Users\\hfu\\Documents\\myclasses.jar", ""};
+        if (args.length == 0) {
+            System.out.println("Usage: java Main class_name_to_analyse");
+            System.exit(0);
+        }
 
-        //if (args.length == 0) {
-        //System.out.println("Usage: java RunLiveAnalysis class_to_analyse");
-        //System.exit(0);
-        //}
-
-        //System.out.println("Setting classpath to: " + args[0]);
-        //Scene.v().setSootClassPath(args[0]);
-        Settings.setAppName("simple-auto-lock-door");
+        logger.info("Setting classpath to: " + args[0]);
+        Settings.setAppName(args[0]);
         Settings.setOutputDirectory("output");
         Settings.setLogLevel(0);
 
-        SootClass tgtClass = initializeSoot("simple-auto-lock-door");
+        SootClass tgtClass = initializeSoot(Settings.getAppName());
 
         // do not merge variables (causes problems with PointsToSets)
         Options.v().setPhaseOption("jb.ulp", "off");
