@@ -22,22 +22,6 @@ import org.slf4j.LoggerFactory;
  */
 public class CallGraphResolver {
     private static final Logger logger = LoggerFactory.getLogger(CallGraphResolver.class);
-    private static Map<SootClass, Map<String, Set<SootMethod>>> class2Methods = new HashMap<>();
-
-    public static Map<String, Set<SootMethod>> getMethods(SootClass sootClass) {
-        if (class2Methods.containsKey(sootClass)) {
-            return class2Methods.get(sootClass);
-        }
-        Map<String, Set<SootMethod>> methods = new HashMap<>();
-        for (SootMethod method : sootClass.getMethods()) {
-            if (!methods.containsKey(method)) {
-                methods.put(method.getName(), new HashSet<>());
-            }
-            methods.get(method.getName()).add(method);
-        }
-        class2Methods.put(sootClass, methods);
-        return methods;
-    }
 
     /**
      * Groovy stores every call into a call site array. Use this method to retrieve the call sites.
@@ -46,30 +30,24 @@ public class CallGraphResolver {
      */
     public static Map<Integer, String> getCallSites(SootClass tgtClass) {
         Map<Integer, String> callSites = new HashMap<>();
-        if (!CallGraphResolver.class2Methods.containsKey(tgtClass)) {
-            getMethods(tgtClass);
-        }
-        for (String methodName : getMethods(tgtClass).keySet()) {
-            if (!methodName.contains("$createCallSiteArray")) {
+        for (SootMethod method : tgtClass.getMethods()) {
+            if (!method.getName().contains("$createCallSiteArray")) {
                 continue;
             }
-            for (SootMethod method : getMethods(tgtClass).get(methodName)) {
-                System.out.println("method: " + method);
-                // 获得它的函数体
-                Body body = method.retrieveActiveBody();
-                // 生成函数的control flow graph
-                UnitGraph cfg = new ExceptionalUnitGraph(body);
-                for (Unit unit : cfg) {
-                    Stmt stmt = (Stmt) unit;
-                    Value lastVal = null;
-                    for (int i = 0; i < stmt.getUseBoxes().size(); i++) {
-                        Value value = stmt.getUseBoxes().get(i).getValue();
-                        if (value.getType().toString().equals("java.lang.String")
-                                && lastVal != null && lastVal.getType().toString().contains("nt")) {
-                            callSites.put(Integer.parseInt(lastVal.toString()), pureName(value.toString()));
-                        }
-                        lastVal = value;
+            // 获得它的函数体
+            Body body = method.retrieveActiveBody();
+            // 生成函数的control flow graph
+            UnitGraph cfg = new ExceptionalUnitGraph(body);
+            for (Unit unit : cfg) {
+                Stmt stmt = (Stmt) unit;
+                Value lastVal = null;
+                for (int i = 0; i < stmt.getUseBoxes().size(); i++) {
+                    Value value = stmt.getUseBoxes().get(i).getValue();
+                    if (value.getType().toString().equals("java.lang.String")
+                            && lastVal != null && lastVal.getType().toString().contains("nt")) {
+                        callSites.put(Integer.parseInt(lastVal.toString()), pureName(value.toString()));
                     }
+                    lastVal = value;
                 }
             }
         }
@@ -89,7 +67,7 @@ public class CallGraphResolver {
         // 生成函数的control flow graph
         UnitGraph cfg = new ExceptionalUnitGraph(body);
         for (Unit unit : cfg) {
-            Stmt stmt = (Stmt)unit;
+            Stmt stmt = (Stmt) unit;
             if (stmt.containsInvokeExpr()) {
                 SootMethod sootMethod = stmt.getInvokeExpr().getMethod();
                 if (sootMethod.getName().contains("getCallSiteArray") && !stmt.getDefBoxes().isEmpty()) {
@@ -116,7 +94,7 @@ public class CallGraphResolver {
         UnitGraph cfg = new ExceptionalUnitGraph(body);
 
         for (Unit unit : cfg) {
-            Stmt stmt = (Stmt)unit;
+            Stmt stmt = (Stmt) unit;
             if (stmt instanceof DefinitionStmt) {
                 DefinitionStmt definitionStmt = (DefinitionStmt) stmt;
                 if (definitionStmt.getRightOp().toString().contains(nameReg.toString() + "[")) {
@@ -144,6 +122,7 @@ public class CallGraphResolver {
 
     /**
      * The call site stores elements with quotes such as 0="runScript", remove the quotes: 0=runScript.
+     *
      * @param name
      * @return
      */
@@ -151,7 +130,7 @@ public class CallGraphResolver {
         Pattern p = Pattern.compile("\"([^\"]*)\"");
         Matcher m = p.matcher(name);
         while (m.find()) {
-            return(m.group(1));
+            return (m.group(1));
         }
         return "";
     }
@@ -160,6 +139,7 @@ public class CallGraphResolver {
      * Add the call edges by "replacing" groovy.runtime.callsite.CallSite::call/callCurrent to the referred real call.
      * If it invokes a call such as $r5.<org.codehaus.groovy.runtime.callsite.CallSite: java.lang.Object call(java.lang.Object,java.lang.Object)>($r6, $r7),
      * instrument a virtual direct call use the call site name, such as multiply(r6, r7) and add the edge to the cg.
+     *
      * @param callGraph
      * @param method
      * @param callSites
@@ -175,7 +155,7 @@ public class CallGraphResolver {
         UnitGraph cfg = new ExceptionalUnitGraph(body);
         Map<Stmt, Stmt> old2New = new HashMap<>();
         for (Unit unit : cfg) {
-            Stmt stmt = (Stmt)unit;
+            Stmt stmt = (Stmt) unit;
             if (stmt instanceof DefinitionStmt) {
                 DefinitionStmt definitionStmt = (DefinitionStmt) stmt;
                 if (definitionStmt.getRightOp().toString().contains(callSiteReg.toString() + "[")) {
