@@ -99,7 +99,7 @@ public class Main {
             sc.setPhantomClass();
         });
         // 载入MyClass类
-        //SootClass tgtClass = Scene.v().loadClassAndSupport("simple-auto-lock-door");
+        //SootClass tgtClass = Scene.v().loadClassAndSupport("fu.hao.smartapp.simple-auto-lock-doorp.auto-lock-door");
         //tgtClass.declaresMethodByName("dummyMain");
         // 把它作为我们要分析的类
         //tgtClass.setApplicationClass();

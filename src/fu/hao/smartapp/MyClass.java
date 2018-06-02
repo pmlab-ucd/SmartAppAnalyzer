@@ -1,4 +1,4 @@
-package fu.hao.analysis;
+package fu.hao.smartapp;
 
 /**
  * Created by hfu on 8/22/2017.

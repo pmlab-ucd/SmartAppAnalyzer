@@ -1,4 +1,4 @@
-package fu.hao.analysis
+package fu.hao.smartapp
 
 def runIn(delay, func) {
 
