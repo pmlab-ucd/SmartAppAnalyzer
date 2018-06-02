@@ -1,7 +1,6 @@
 package fu.hao.analysis.cg;
 
 import fu.hao.analysis.DataForwardTracer;
-import fu.hao.utils.Log;
 import heros.solver.Pair;
 import soot.*;
 import soot.jimple.DefinitionStmt;
@@ -15,11 +14,14 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Resolve the call graph of the given groovy class.
  */
 public class CallGraphResolver {
-    public static final String TAG = "CallGraphResolver";
+    private static final Logger logger = LoggerFactory.getLogger(CallGraphResolver.class);
     private static Map<SootClass, Map<String, Set<SootMethod>>> class2Methods = new HashMap<>();
 
     public static Map<String, Set<SootMethod>> getMethods(SootClass sootClass) {
@@ -127,7 +129,7 @@ public class CallGraphResolver {
                 }
             }
         }
-        Log.bb(TAG, reg2names);
+        logger.debug("reg2names: " + reg2names);
         return res;
     }
 
@@ -180,7 +182,7 @@ public class CallGraphResolver {
                     String index = definitionStmt.getRightOp().toString();
                     index = index.substring(index.indexOf("[") + 1, index.indexOf("]"));
                     String name = callSites.get(Integer.parseInt(index));
-                    Log.bb(TAG, index + ", " + name);
+                    logger.debug(index + ", " + name);
                     //System.out.println(definitionStmt.getLeftOp() + "=" + definitionStmt.getRightOp() + ", " + name);
                     CallSiteRegTracker callSiteRegTracker = new CallSiteRegTracker(cfg, stmt, name, method);
                     old2New.putAll(callSiteRegTracker.getOld2NewCalls());
@@ -190,14 +192,14 @@ public class CallGraphResolver {
 
         for (Stmt old : old2New.keySet()) {
             Stmt newInvoke = old2New.get(old);
-            Log.msg(TAG, old.hashCode());
             body.getUnits().insertAfter(newInvoke, old);
             Edge edge = new Edge(method, newInvoke, newInvoke.getInvokeExpr().getMethod());
             callGraph.addEdge(edge);
             for (Unit unit : cfg) {
                 Stmt stmt = (Stmt) unit;
-                Log.msg(TAG, stmt + ", " + stmt.hashCode());
+                logger.info(stmt + ", " + stmt.hashCode());
             }
+            body.validate();
         }
     }
 

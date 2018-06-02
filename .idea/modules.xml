@@ -3,6 +3,13 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/SmartAppAnalyzer.iml" filepath="$PROJECT_DIR$/SmartAppAnalyzer.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../soot/eclipse/ca.mcgill.sable.soot/ca.mcgill.sable.soot.iml" filepath="$PROJECT_DIR$/../soot/eclipse/ca.mcgill.sable.soot/ca.mcgill.sable.soot.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../soot/eclipse/ca.mcgill.sable.soot.feature/ca.mcgill.sable.soot.feature.iml" filepath="$PROJECT_DIR$/../soot/eclipse/ca.mcgill.sable.soot.feature/ca.mcgill.sable.soot.feature.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../soot/eclipse/ca.mcgill.sable.soot.help/ca.mcgill.sable.soot.help.iml" filepath="$PROJECT_DIR$/../soot/eclipse/ca.mcgill.sable.soot.help/ca.mcgill.sable.soot.help.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../soot/eclipse/ca.mcgill.sable.lib/ca.mcgill.sable.soot.lib.iml" filepath="$PROJECT_DIR$/../soot/eclipse/ca.mcgill.sable.lib/ca.mcgill.sable.soot.lib.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../soot/eclipse/ca.mcgill.sable.soot.updatesite/ca.mcgill.sable.soot.updatesite.iml" filepath="$PROJECT_DIR$/../soot/eclipse/ca.mcgill.sable.soot.updatesite/ca.mcgill.sable.soot.updatesite.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../heros/heros.iml" filepath="$PROJECT_DIR$/../heros/heros.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../soot/soot.iml" filepath="$PROJECT_DIR$/../soot/soot.iml" />
     </modules>
   </component>
 </project>
