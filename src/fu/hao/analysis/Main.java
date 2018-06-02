@@ -9,17 +9,14 @@
 package fu.hao.analysis;
 
 import java.io.File;
-import java.util.Iterator;
 import java.util.Map;
 
 import fu.hao.analysis.cg.CallGraphResolver;
 import fu.hao.utils.Settings;
-//import heros.InterproceduralCFG;
 import soot.*;
 import soot.jimple.Stmt;
 import soot.jimple.toolkits.callgraph.CallGraph;
 import soot.jimple.toolkits.callgraph.Edge;
-import soot.jimple.toolkits.ide.icfg.JimpleBasedInterproceduralCFG;
 import soot.options.Options;
 import soot.toolkits.graph.ExceptionalUnitGraph;
 import soot.toolkits.graph.UnitGraph;
@@ -33,7 +30,7 @@ public class Main {
     private static final String TAG = "MAIN";
     private static final Logger logger = LoggerFactory.getLogger(Main.class);
 
-    protected static SootClass initializeSoot(String className) {
+    private static SootClass initializeSoot(String className) {
         // reset Soot:
         soot.G.reset();
 
@@ -49,23 +46,18 @@ public class Main {
         Options.v().set_allow_phantom_refs(true);
         Options.v().set_output_format(Options.output_format_jimple);
 
-
         // Configure the callgraph algorithm
         Options.v().setPhaseOption("cg.spark", "on");
         Options.v().setPhaseOption("cg.spark", "vta:true");
         Options.v().setPhaseOption("cg.spark", "string-constants:true");
 
-
         // Specify additional options required for the callgraph
-
         Options.v().set_whole_program(true);
         Options.v().setPhaseOption("cg", "trim-clinit:false");
         Options.v().setPhaseOption("cg", "types-for-invoke:true");
 
-
         // do not merge variables (causes problems with PointsToSets)
         Options.v().setPhaseOption("jb.ulp", "off");
-
 
         // load all entryPoint classes with their bodies
         Scene.v().addBasicClass(className, SootClass.BODIES);
@@ -207,8 +199,24 @@ public class Main {
             System.out.println("---------------------------------------");*/
             }
 
-            CallGraphResolver.addCallEdges(callGraph, method, callSites);
+            CallGraphResolver.addCallEdges(method, callSites);
         }
+
+        for (Body body : CallGraphResolver.newCallSites.keySet()) {
+            Map<Stmt, Stmt> old2New = CallGraphResolver.newCallSites.get(body);
+            for (Stmt old : old2New.keySet()) {
+                Stmt newInvoke = old2New.get(old);
+                body.getUnits().insertAfter(newInvoke, old);
+                Edge edge = new Edge(body.getMethod(), newInvoke, newInvoke.getInvokeExpr().getMethod());
+                callGraph.addEdge(edge);
+                for (Unit unit : body.getUnits()) {
+                    Stmt stmt = (Stmt) unit;
+                    logger.info(stmt + ", " + stmt.hashCode());
+                }
+                body.validate();
+            }
+        }
+
         //InterproceduralCFG<Unit, SootMethod> icfg = new JimpleBasedInterproceduralCFG();
 
     }

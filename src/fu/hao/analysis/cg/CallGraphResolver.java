@@ -5,8 +5,6 @@ import heros.solver.Pair;
 import soot.*;
 import soot.jimple.DefinitionStmt;
 import soot.jimple.Stmt;
-import soot.jimple.toolkits.callgraph.CallGraph;
-import soot.jimple.toolkits.callgraph.Edge;
 import soot.toolkits.graph.ExceptionalUnitGraph;
 import soot.toolkits.graph.UnitGraph;
 
@@ -22,11 +20,15 @@ import org.slf4j.LoggerFactory;
  */
 public class CallGraphResolver {
     private static final Logger logger = LoggerFactory.getLogger(CallGraphResolver.class);
+    /**
+     * Store <body, <old groovy runtime callsite, new equivalent Java call site>>
+     */
+    public static final Map<Body, Map<Stmt, Stmt>> newCallSites = new HashMap<>();
 
     /**
      * Groovy stores every call into a call site array. Use this method to retrieve the call sites.
-     * @param tgtClass
-     * @return
+     * @param tgtClass The analysis target
+     * @return call sites array info
      */
     public static Map<Integer, String> getCallSites(SootClass tgtClass) {
         Map<Integer, String> callSites = new HashMap<>();
@@ -58,10 +60,10 @@ public class CallGraphResolver {
     /**
      * Get the register that stores the info of call sites in this method.
      * CallSite[] var2 = $getCallSiteArray();
-     * @param method
-     * @return
+     * @param method The analysis target.
+     * @return The reg points to call sites array.
      */
-    public static Value getCallSiteReg(SootMethod method) {
+    private static Value getCallSiteReg(SootMethod method) {
         // 获得它的函数体
         Body body = method.retrieveActiveBody();
         // 生成函数的control flow graph
@@ -122,14 +124,13 @@ public class CallGraphResolver {
 
     /**
      * The call site stores elements with quotes such as 0="runScript", remove the quotes: 0=runScript.
-     *
-     * @param name
-     * @return
+     * @param name A string such as "xx"
+     * @return xx
      */
     private static String pureName(String name) {
         Pattern p = Pattern.compile("\"([^\"]*)\"");
         Matcher m = p.matcher(name);
-        while (m.find()) {
+        if (m.find()) {
             return (m.group(1));
         }
         return "";
@@ -140,11 +141,10 @@ public class CallGraphResolver {
      * If it invokes a call such as $r5.<org.codehaus.groovy.runtime.callsite.CallSite: java.lang.Object call(java.lang.Object,java.lang.Object)>($r6, $r7),
      * instrument a virtual direct call use the call site name, such as multiply(r6, r7) and add the edge to the cg.
      *
-     * @param callGraph
-     * @param method
-     * @param callSites
+     * @param method The analysis target.
+     * @param callSites The call sites array.
      */
-    public static void addCallEdges(CallGraph callGraph, SootMethod method, Map<Integer, String> callSites) {
+    public static void addCallEdges(SootMethod method, Map<Integer, String> callSites) {
         Value callSiteReg = getCallSiteReg(method);
         if (callSiteReg == null) {
             return;
@@ -169,18 +169,7 @@ public class CallGraphResolver {
                 }
             }
         }
-
-        for (Stmt old : old2New.keySet()) {
-            Stmt newInvoke = old2New.get(old);
-            body.getUnits().insertAfter(newInvoke, old);
-            Edge edge = new Edge(method, newInvoke, newInvoke.getInvokeExpr().getMethod());
-            callGraph.addEdge(edge);
-            for (Unit unit : cfg) {
-                Stmt stmt = (Stmt) unit;
-                logger.info(stmt + ", " + stmt.hashCode());
-            }
-            body.validate();
-        }
+        newCallSites.put(body, old2New);
     }
 
     /*
