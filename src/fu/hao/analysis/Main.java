@@ -95,17 +95,9 @@ public class Main {
             sc.setResolvingLevel(SootClass.BODIES);
             sc.setPhantomClass();
         });
-        // 载入MyClass类
-        //SootClass tgtClass = Scene.v().loadClassAndSupport("fu.hao.smartapp.simple-auto-lock-doorp.auto-lock-door");
-        //tgtClass.declaresMethodByName("dummyMain");
-        // 把它作为我们要分析的类
-        //tgtClass.setApplicationClass();
-        //Options.v().set_main_class(tgtClass.getMethodByName("doorOpen").getSignature());
 
         PackManager.v().getPack("wjpp").apply();
         PackManager.v().getPack("cg").apply();
-
-        //PackManager.v().runPacks();
 
         Map<Integer, String> callSites = CallGraphResolver.getCallSites(tgtClass);
         System.out.println(callSites);
