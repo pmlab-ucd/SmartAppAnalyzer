@@ -121,7 +121,7 @@ public class Main {
                 Edge edge = new Edge(body.getMethod(), newInvoke, newInvoke.getInvokeExpr().getMethod());
                 callGraph.addEdge(edge);
                 body.validate();
-                logger.info(old + ", " + newInvoke);
+                logger.info(body.getMethod() + ": " + newInvoke);
             }
         }
         logger.info("New cg size: " + callGraph.size());

@@ -162,7 +162,6 @@ public class CallGraphResolver {
                     index = index.substring(index.indexOf("[") + 1, index.indexOf("]"));
                     String name = callSites.get(Integer.parseInt(index));
                     logger.debug(index + ", " + name);
-                    //System.out.println(definitionStmt.getLeftOp() + "=" + definitionStmt.getRightOp() + ", " + name);
                     CallSiteRegTracker callSiteRegTracker = new CallSiteRegTracker(cfg, stmt, name, method);
                     old2New.putAll(callSiteRegTracker.getOld2NewCalls());
                 }
