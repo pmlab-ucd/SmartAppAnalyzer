@@ -24,7 +24,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class Main {
-
     private static final Logger logger = LoggerFactory.getLogger(Main.class);
 
     private static SootClass initializeSoot(String className) {
@@ -69,6 +68,16 @@ public class Main {
             }
         }
 
+        // do not merge variables (causes problems with PointsToSets)
+        Options.v().setPhaseOption("jb.ulp", "off");
+
+        // To cope with broken APK files, we convert all classes that are still
+        // dangling after resolution into phantoms
+        Scene.v().getClasses().stream().filter(sc -> sc.resolvingLevel() == SootClass.DANGLING).forEach(sc -> {
+            sc.setResolvingLevel(SootClass.BODIES);
+            sc.setPhantomClass();
+        });
+
         return c;
     }
 
@@ -85,17 +94,6 @@ public class Main {
 
         SootClass tgtClass = initializeSoot(Settings.getAppName());
 
-        // do not merge variables (causes problems with PointsToSets)
-        Options.v().setPhaseOption("jb.ulp", "off");
-
-
-        // To cope with broken APK files, we convert all classes that are still
-        // dangling after resolution into phantoms
-        Scene.v().getClasses().stream().filter(sc -> sc.resolvingLevel() == SootClass.DANGLING).forEach(sc -> {
-            sc.setResolvingLevel(SootClass.BODIES);
-            sc.setPhantomClass();
-        });
-
         PackManager.v().getPack("wjpp").apply();
         PackManager.v().getPack("cg").apply();
 
@@ -105,8 +103,6 @@ public class Main {
 
         logger.info("cg size: " + String.valueOf(callGraph.size()));
 
-        // 找到它的myMethod函数
-        //SootMethod method = tgtClass.getMethodByName("checkMotion");
         for (SootMethod method : tgtClass.getMethods()) {
             if (method.getName().contains("CallSiteArray") || method.getName().matches("run")) {
                 continue;

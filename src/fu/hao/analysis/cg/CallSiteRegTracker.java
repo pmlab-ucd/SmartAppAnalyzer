@@ -1,10 +1,7 @@
 package fu.hao.analysis.cg;
 
-import fu.hao.utils.Log;
 import soot.*;
 import soot.jimple.*;
-import soot.jimple.toolkits.callgraph.CallGraph;
-import soot.jimple.toolkits.callgraph.Edge;
 import soot.toolkits.graph.DirectedGraph;
 import soot.toolkits.scalar.ArraySparseSet;
 import soot.toolkits.scalar.FlowSet;
@@ -13,6 +10,9 @@ import soot.toolkits.scalar.ForwardFlowAnalysis;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Description: Track the propagation of a call site value in a class.
@@ -23,7 +23,7 @@ import java.util.Map;
  * @since 11/9/2016
  */
 public class CallSiteRegTracker extends ForwardFlowAnalysis<Object, Object> {
-    private static final String TAG = "CallSiteRegTracker";
+    private static final Logger logger = LoggerFactory.getLogger(CallSiteRegTracker.class);
 
     private Stmt srcStmt;
     private SootMethod thisMethod;
@@ -115,7 +115,7 @@ public class CallSiteRegTracker extends ForwardFlowAnalysis<Object, Object> {
                     throw new RuntimeException("Not a valid Groovy call: " + stmt);
                 }
                 if (outSet.contains(caller)) {
-                    Log.msg(TAG, caller + ", " + stmt.getInvokeExpr() + ", " + stmt.getInvokeExprBox().getValue().getUseBoxes());
+                    logger.debug(caller + ", " + stmt.getInvokeExpr() + ", " + stmt.getInvokeExprBox().getValue().getUseBoxes());
                     SootMethod callee;
                     try {
                         callee = thisMethod.getDeclaringClass().getMethod(name, sootMethod.getParameterTypes());
@@ -129,7 +129,7 @@ public class CallSiteRegTracker extends ForwardFlowAnalysis<Object, Object> {
                     Stmt newInvoke = (Stmt) stmt.clone();
                     newInvoke.getInvokeExpr().setMethodRef(callee.makeRef());
                     old2NewCalls.put(stmt, newInvoke);
-                    Log.msg(TAG, "calling " + callee + ", " + newInvoke);
+                    logger.debug("calling " + callee + ", " + newInvoke);
                 }
             }
         }
@@ -150,7 +150,7 @@ public class CallSiteRegTracker extends ForwardFlowAnalysis<Object, Object> {
         if (unit instanceof AssignStmt) {
             // if returned by source()
             if (unit.equals(srcStmt)) {
-                Log.msg(TAG, "Found Source! " + unit);
+                logger.debug("Found Source! " + unit);
                 addDefBox(unit, outSet);
                 hasTainted = true;
             }

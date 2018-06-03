@@ -103,7 +103,6 @@ public class CallGraphResolver {
                     String index = definitionStmt.getRightOp().toString();
                     index = index.substring(index.indexOf("[") + 1, index.indexOf("]"));
                     String name = callSites.get(Integer.parseInt(index));
-                    //System.out.println(definitionStmt.getLeftOp() + "=" + definitionStmt.getRightOp() + ", " + name);
                     reg2names.put(definitionStmt.getLeftOp().toString(), name);
                     name2stmts.put(name, stmt);
                 }
