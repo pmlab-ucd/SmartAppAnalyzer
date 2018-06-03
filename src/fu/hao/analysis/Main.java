@@ -23,6 +23,9 @@ import soot.SootMethod;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * The main entry of analysis.
+ */
 public class Main {
     private static final Logger logger = LoggerFactory.getLogger(Main.class);
 
