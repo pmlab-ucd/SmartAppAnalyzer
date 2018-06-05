@@ -16,6 +16,7 @@ import fu.hao.utils.Settings;
 import heros.InterproceduralCFG;
 import soot.*;
 import soot.jimple.Stmt;
+import soot.jimple.infoflow.solver.cfg.InfoflowCFG;
 import soot.jimple.toolkits.callgraph.CallGraph;
 import soot.jimple.toolkits.callgraph.Edge;
 import soot.jimple.toolkits.ide.icfg.JimpleBasedInterproceduralCFG;
@@ -127,11 +128,12 @@ public class Main {
             }
         }
         logger.info("New cg size: " + callGraph.size());
-        InterproceduralCFG<Unit, SootMethod> icfg = new JimpleBasedInterproceduralCFG();
+        InfoflowCFG icfg = new InfoflowCFG();
         for (Body body : CallGraphResolver.newCallSites.keySet()) {
             Map<Stmt, Stmt> old2New = CallGraphResolver.newCallSites.get(body);
             for (Stmt n : old2New.values()) {
-                logger.info("" + ((JimpleBasedInterproceduralCFG) icfg).getCallersOf(n.getInvokeExpr().getMethod()));
+                logger.info("" + icfg.getCallersOf(n.getInvokeExpr().getMethod()));
+                // logger.info("" + icfg.getPostdominatorOf(n));
             }
         }
 

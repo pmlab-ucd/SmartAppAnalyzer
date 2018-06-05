@@ -20,5 +20,6 @@
     <orderEntry type="library" name="org.junit:junit-commons:5.0.0-SNAPSHOT" level="project" />
     <orderEntry type="library" scope="TEST" name="Maven: junit:junit:4.12" level="project" />
     <orderEntry type="library" name="Maven: junit:junit:4.12" level="project" />
+    <orderEntry type="module" module-name="soot-infoflow" />
   </component>
 </module>

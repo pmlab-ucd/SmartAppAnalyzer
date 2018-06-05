@@ -10,6 +10,10 @@
       <module fileurl="file://$PROJECT_DIR$/../soot/eclipse/ca.mcgill.sable.soot.updatesite/ca.mcgill.sable.soot.updatesite.iml" filepath="$PROJECT_DIR$/../soot/eclipse/ca.mcgill.sable.soot.updatesite/ca.mcgill.sable.soot.updatesite.iml" />
       <module fileurl="file://$PROJECT_DIR$/../heros/heros.iml" filepath="$PROJECT_DIR$/../heros/heros.iml" />
       <module fileurl="file://$PROJECT_DIR$/../soot/soot.iml" filepath="$PROJECT_DIR$/../soot/soot.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../FlowDroid/soot-infoflow/soot-infoflow.iml" filepath="$PROJECT_DIR$/../FlowDroid/soot-infoflow/soot-infoflow.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../FlowDroid/soot-infoflow-android/soot-infoflow-android.iml" filepath="$PROJECT_DIR$/../FlowDroid/soot-infoflow-android/soot-infoflow-android.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../FlowDroid/soot-infoflow-cmd/soot-infoflow-cmd.iml" filepath="$PROJECT_DIR$/../FlowDroid/soot-infoflow-cmd/soot-infoflow-cmd.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../FlowDroid/soot-infoflow-summaries/soot-infoflow-summaries.iml" filepath="$PROJECT_DIR$/../FlowDroid/soot-infoflow-summaries/soot-infoflow-summaries.iml" />
     </modules>
   </component>
 </project>
