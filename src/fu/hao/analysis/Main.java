@@ -13,10 +13,12 @@ import java.util.Map;
 
 import fu.hao.analysis.cg.CallGraphResolver;
 import fu.hao.utils.Settings;
+import heros.InterproceduralCFG;
 import soot.*;
 import soot.jimple.Stmt;
 import soot.jimple.toolkits.callgraph.CallGraph;
 import soot.jimple.toolkits.callgraph.Edge;
+import soot.jimple.toolkits.ide.icfg.JimpleBasedInterproceduralCFG;
 import soot.options.Options;
 import soot.SootMethod;
 
@@ -125,6 +127,14 @@ public class Main {
             }
         }
         logger.info("New cg size: " + callGraph.size());
+        InterproceduralCFG<Unit, SootMethod> icfg = new JimpleBasedInterproceduralCFG();
+        for (Body body : CallGraphResolver.newCallSites.keySet()) {
+            Map<Stmt, Stmt> old2New = CallGraphResolver.newCallSites.get(body);
+            for (Stmt n : old2New.values()) {
+                logger.info("" + ((JimpleBasedInterproceduralCFG) icfg).getCallersOf(n.getInvokeExpr().getMethod()));
+            }
+        }
+
     }
 
 }
