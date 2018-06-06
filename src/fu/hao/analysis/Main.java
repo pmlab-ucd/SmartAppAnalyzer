@@ -9,13 +9,20 @@
 package fu.hao.analysis;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Map;
 
 import fu.hao.analysis.cg.CallGraphResolver;
 import fu.hao.utils.Settings;
 import heros.InterproceduralCFG;
 import soot.*;
+import soot.jimple.IfStmt;
 import soot.jimple.Stmt;
+import soot.jimple.infoflow.Infoflow;
+import soot.jimple.infoflow.InfoflowConfiguration;
+import soot.jimple.infoflow.cfg.DefaultBiDiICFGFactory;
+import soot.jimple.infoflow.solver.cfg.IInfoflowCFG;
 import soot.jimple.infoflow.solver.cfg.InfoflowCFG;
 import soot.jimple.toolkits.callgraph.CallGraph;
 import soot.jimple.toolkits.callgraph.Edge;
@@ -99,6 +106,15 @@ public class Main {
         Settings.setLogLevel(0);
 
         SootClass tgtClass = initializeSoot(Settings.getAppName());
+        SootMethod ep = Scene.v().getMethod("<YouLeftTheDoorOpen: java.lang.Object sensorTriggered(java.lang.Object)>");
+        if (ep.isConcrete())
+            ep.retrieveActiveBody();
+        else {
+            logger.debug("Skipping non-concrete method " + ep);
+            return;
+        }
+        Scene.v().setEntryPoints(Collections.singletonList(ep));
+        Options.v().set_main_class(ep.getDeclaringClass().getName());
 
         PackManager.v().getPack("wjpp").apply();
         PackManager.v().getPack("cg").apply();
@@ -127,13 +143,21 @@ public class Main {
                 logger.info(body.getMethod() + ": " + newInvoke);
             }
         }
-        logger.info("New cg size: " + callGraph.size());
-        InfoflowCFG icfg = new InfoflowCFG();
-        for (Body body : CallGraphResolver.newCallSites.keySet()) {
-            Map<Stmt, Stmt> old2New = CallGraphResolver.newCallSites.get(body);
-            for (Stmt n : old2New.values()) {
-                logger.info("" + icfg.getCallersOf(n.getInvokeExpr().getMethod()));
-                // logger.info("" + icfg.getPostdominatorOf(n));
+        logger.info("Callgraph has {} edges", Scene.v().getCallGraph().size());
+
+        DefaultBiDiICFGFactory icfgFactory = new DefaultBiDiICFGFactory();
+        IInfoflowCFG iCfg = icfgFactory.buildBiDirICFG(InfoflowConfiguration.CallgraphAlgorithm.VTA,
+                false);
+        SootMethod sootMethod = tgtClass.getMethod("takeAction", new ArrayList<>());
+        ((JimpleBasedInterproceduralCFG) ((InfoflowCFG) iCfg).getDelegate()).initializeUnitToOwner(sootMethod);
+        for (Unit unit : sootMethod.getActiveBody().getUnits()) {
+            Stmt stmt = (Stmt) unit;
+            // Get the operand
+            if (stmt instanceof IfStmt) {
+                for (Unit u : iCfg.getSuccsOf(stmt)) {
+                    logger.info("u: " + u);
+                }
+                logger.info("post: " + iCfg.getPostdominatorOf(stmt));
             }
         }
 
