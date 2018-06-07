@@ -32,6 +32,8 @@ import soot.SootMethod;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import soot.toolkits.graph.ExceptionalUnitGraph;
+import soot.toolkits.graph.UnitGraph;
 
 /**
  * The main entry of analysis.
@@ -106,15 +108,15 @@ public class Main {
         Settings.setLogLevel(0);
 
         SootClass tgtClass = initializeSoot(Settings.getAppName());
-        SootMethod ep = Scene.v().getMethod("<YouLeftTheDoorOpen: java.lang.Object sensorTriggered(java.lang.Object)>");
-        if (ep.isConcrete())
-            ep.retrieveActiveBody();
-        else {
-            logger.debug("Skipping non-concrete method " + ep);
-            return;
-        }
-        Scene.v().setEntryPoints(Collections.singletonList(ep));
-        Options.v().set_main_class(ep.getDeclaringClass().getName());
+//        SootMethod ep = Scene.v().getMethod("<YouLeftTheDoorOpen: java.lang.Object sensorTriggered(java.lang.Object)>");
+//        if (ep.isConcrete())
+//            ep.retrieveActiveBody();
+//        else {
+//            logger.debug("Skipping non-concrete method " + ep);
+//            return;
+//        }
+//        Scene.v().setEntryPoints(Collections.singletonList(ep));
+//        Options.v().set_main_class(ep.getDeclaringClass().getName());
 
         PackManager.v().getPack("wjpp").apply();
         PackManager.v().getPack("cg").apply();
@@ -148,16 +150,27 @@ public class Main {
         DefaultBiDiICFGFactory icfgFactory = new DefaultBiDiICFGFactory();
         IInfoflowCFG iCfg = icfgFactory.buildBiDirICFG(InfoflowConfiguration.CallgraphAlgorithm.VTA,
                 false);
-        SootMethod sootMethod = tgtClass.getMethod("takeAction", new ArrayList<>());
+        SootMethod sootMethod = tgtClass.getMethod("myMethod", new ArrayList<>());
         ((JimpleBasedInterproceduralCFG) ((InfoflowCFG) iCfg).getDelegate()).initializeUnitToOwner(sootMethod);
+
+        for (Unit unit : sootMethod.getActiveBody().getUnits()) {
+            Stmt stmt = (Stmt) unit;
+            logger.info("" + stmt);
+        }
+        UnitGraph cfg = new ExceptionalUnitGraph(sootMethod.getActiveBody());
         for (Unit unit : sootMethod.getActiveBody().getUnits()) {
             Stmt stmt = (Stmt) unit;
             // Get the operand
             if (stmt instanceof IfStmt) {
+                logger.info("IF: " + stmt);
                 for (Unit u : iCfg.getSuccsOf(stmt)) {
+                    logger.info("iu: " + u);
+                }
+
+                for (Unit u : cfg.getSuccsOf(stmt)) {
                     logger.info("u: " + u);
                 }
-                logger.info("post: " + iCfg.getPostdominatorOf(stmt));
+                logger.info("post: " + iCfg.getPostdominatorOf(stmt).getUnit());
             }
         }
 

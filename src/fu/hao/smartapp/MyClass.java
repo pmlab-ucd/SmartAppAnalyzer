@@ -1,5 +1,3 @@
-package fu.hao.smartapp;
-
 /**
  * Created by hfu on 8/22/2017.
  */
@@ -10,11 +8,18 @@ public class MyClass {
         x = 30;
         a = x - 1;
         b = x - 2;
-        while (x > 0) {
+        if (x > 0) {
             System.out.print(a * b - x);
             x = x - 1;
+            System.err.println(x);
+        } else if (a == 3) {
+            System.out.print(a * b);
+        } else {
+            int w = a + 2;
+            System.out.println(w);
         }
-        System.out.print(a * b);
+        int t = 4;
+        System.out.println(t + 8);
     }
 
     private void testTaintForwardVar() {
