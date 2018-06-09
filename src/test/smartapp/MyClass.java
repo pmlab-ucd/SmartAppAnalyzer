@@ -3,6 +3,9 @@
  */
 
 public class MyClass {
+
+    static boolean status = false;
+
     private void myMethod() {
         int x, a, b;
         x = 30;
@@ -20,6 +23,20 @@ public class MyClass {
         }
         int t = 4;
         System.out.println(t + 8);
+    }
+
+    private void implicitFlow1() {
+        int env = source();
+        if (env == 41) {
+            status = true;
+            implicitFlow2();
+        }
+    }
+
+    private void implicitFlow2() {
+        if (status) {
+            System.out.println("implicit");
+        }
     }
 
     private void testTaintForwardVar() {
@@ -41,6 +58,6 @@ public class MyClass {
 
     public static void main(String[] args) {
         MyClass mc = new MyClass();
-        mc.myMethod();
+        mc.implicitFlow1(); // myMethod();
     }
 }

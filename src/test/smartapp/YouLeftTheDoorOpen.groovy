@@ -53,6 +53,7 @@ def initialize() {
 }
 
 def sensorTriggered(evt) {
+    evt = source()
     if (evt.value == "closed") {
         clearStatus()
     }
@@ -64,6 +65,7 @@ def sensorTriggered(evt) {
 }
 
 def takeAction(){
+    sink(state.status)
     if (state.status == "scheduled")
     {
         log.debug "$theSensor was open too long, sending message"
@@ -73,6 +75,8 @@ def takeAction(){
     } else {
         log.trace "Status is no longer scheduled. Not sending text."
     }
+    // Add for debug.
+    state.status = null
 }
 
 def clearStatus() {
