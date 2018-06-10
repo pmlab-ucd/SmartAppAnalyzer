@@ -43,10 +43,8 @@ public class InfoflowAnalysis extends Infoflow {
 
     private static final Logger logger = LoggerFactory.getLogger(InfoflowAnalysis.class);
 
-    protected static List<String> sources = new ArrayList<>();
-
-
-    protected static List<String> sinks = new ArrayList<>();
+    public static List<String> sources = new ArrayList<>();
+    public static List<String> sinks = new ArrayList<>();
     static {
         sources.add("<YouLeftTheDoorOpen: java.lang.Object source(groovy.lang.GroovyObject)>");
         sinks.add("<YouLeftTheDoorOpen: java.lang.Object sink(groovy.lang.GroovyObject,java.lang.Object)>");
@@ -59,9 +57,9 @@ public class InfoflowAnalysis extends Infoflow {
         String sep = File.separator;
         String pathSep = File.pathSeparator;
         String path = "lib/rt.jar"; //System.getProperty("java.home") + sep + "lib" + sep + "rt.jar";
-        path += pathSep + "." + sep + "out\\production\\SmartAppAnalyzer";
+        path += pathSep + "." + sep + "out\\test\\SmartAppAnalyzer";
         path += pathSep + "lib/groovy-all-2.2.0-beta-1.jar";
-        //path += pathSep + args[0];
+        // path += pathSep + args[0];
         Options.v().set_soot_classpath(path);
 
         Options.v().set_no_bodies_for_excluded(true);

@@ -28,13 +28,14 @@ public class MyClass {
     private void implicitFlow1() {
         int env = source();
         if (env == 41) {
-            status = true;
+            status = booleanSource();
             implicitFlow2();
         }
     }
 
     private void implicitFlow2() {
         if (status) {
+            booleanSink(status);
             System.out.println("implicit");
         }
     }
@@ -45,6 +46,14 @@ public class MyClass {
         x = k;
         sink(y);
         System.out.print("\n");
+    }
+
+    private boolean booleanSource() {
+        return true;
+    }
+
+    private void booleanSink(boolean x) {
+        System.out.println(x);
     }
 
     private int source() {
