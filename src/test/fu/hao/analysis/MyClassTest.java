@@ -1,4 +1,4 @@
-package test.fu.hao.analysis;
+package fu.hao.analysis;
 
 import fu.hao.analysis.InfoflowAnalysis;
 import fu.hao.analysis.Main;
