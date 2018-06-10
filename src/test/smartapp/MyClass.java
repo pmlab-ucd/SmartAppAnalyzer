@@ -1,3 +1,5 @@
+import java.util.Random;
+
 /**
  * Created by hfu on 8/22/2017.
  */
@@ -27,7 +29,7 @@ public class MyClass {
 
     private void implicitFlow1() {
         int env = source();
-        if (env == 41) {
+        if (env == 42) {
             status = booleanSource();
             implicitFlow2();
         }
@@ -41,15 +43,15 @@ public class MyClass {
     }
 
     private void testTaintForwardVar() {
-        int x = source();
-        int y = x, k = 3;
+        boolean x = booleanSource();
+        boolean y = x, k = false;
         x = k;
-        sink(y);
+        booleanSink(x);
         System.out.print("\n");
     }
 
     private boolean booleanSource() {
-        return true;
+        return (new Random().nextInt() == 42);
     }
 
     private void booleanSink(boolean x) {
@@ -58,7 +60,7 @@ public class MyClass {
 
     private int source() {
         // ultimate answer of the universe
-        return 42;
+        return new Random().nextInt();
     }
 
     private void sink(int x) {
@@ -68,5 +70,6 @@ public class MyClass {
     public static void main(String[] args) {
         MyClass mc = new MyClass();
         mc.implicitFlow1(); // myMethod();
+        mc.testTaintForwardVar();
     }
 }

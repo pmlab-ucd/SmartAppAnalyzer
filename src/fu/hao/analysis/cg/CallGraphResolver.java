@@ -143,7 +143,7 @@ public class CallGraphResolver {
      * @param method The analysis target.
      * @param callSites The call sites array.
      */
-    public static void addCallEdges(SootMethod method, Map<Integer, String> callSites) {
+    public static void newCallEdges(SootMethod method, Map<Integer, String> callSites) {
         Value callSiteReg = getCallSiteReg(method);
         if (callSiteReg == null) {
             return;

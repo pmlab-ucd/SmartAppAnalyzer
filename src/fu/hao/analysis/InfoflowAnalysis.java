@@ -7,47 +7,48 @@ import org.slf4j.LoggerFactory;
 import soot.*;
 import soot.jimple.IfStmt;
 import soot.jimple.Stmt;
-import soot.jimple.infoflow.IInfoflow;
 import soot.jimple.infoflow.Infoflow;
 import soot.jimple.infoflow.InfoflowConfiguration;
 import soot.jimple.infoflow.InfoflowManager;
 import soot.jimple.infoflow.aliasing.Aliasing;
 import soot.jimple.infoflow.aliasing.IAliasingStrategy;
+import soot.jimple.infoflow.cfg.BiDirICFGFactory;
 import soot.jimple.infoflow.cfg.DefaultBiDiICFGFactory;
-import soot.jimple.infoflow.config.ConfigForTest;
 import soot.jimple.infoflow.data.Abstraction;
 import soot.jimple.infoflow.data.AccessPathFactory;
-import soot.jimple.infoflow.memory.IMemoryBoundedSolver;
+import soot.jimple.infoflow.data.FlowDroidMemoryManager;
+import soot.jimple.infoflow.data.pathBuilders.DefaultPathBuilderFactory;
+import soot.jimple.infoflow.entryPointCreators.DefaultEntryPointCreator;
+import soot.jimple.infoflow.memory.FlowDroidMemoryWatcher;
 import soot.jimple.infoflow.problems.InfoflowProblem;
+import soot.jimple.infoflow.results.InfoflowResults;
 import soot.jimple.infoflow.solver.IInfoflowSolver;
 import soot.jimple.infoflow.solver.cfg.IInfoflowCFG;
 import soot.jimple.infoflow.solver.cfg.InfoflowCFG;
 import soot.jimple.infoflow.solver.executors.InterruptableExecutor;
+import soot.jimple.infoflow.solver.memory.DefaultMemoryManagerFactory;
 import soot.jimple.infoflow.solver.memory.IMemoryManager;
+import soot.jimple.infoflow.solver.memory.IMemoryManagerFactory;
 import soot.jimple.infoflow.sourcesSinks.manager.DefaultSourceSinkManager;
 import soot.jimple.infoflow.sourcesSinks.manager.ISourceSinkManager;
-import soot.jimple.infoflow.taintWrappers.EasyTaintWrapper;
 import soot.jimple.toolkits.callgraph.CallGraph;
 import soot.jimple.toolkits.callgraph.Edge;
 import soot.jimple.toolkits.ide.icfg.JimpleBasedInterproceduralCFG;
 import soot.options.Options;
 
 import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class InfoflowAnalysis extends Infoflow {
 
     private static final Logger logger = LoggerFactory.getLogger(InfoflowAnalysis.class);
 
+    public static List<String> entry_points = new ArrayList<>();
     public static List<String> sources = new ArrayList<>();
     public static List<String> sinks = new ArrayList<>();
-    static {
-        sources.add("<YouLeftTheDoorOpen: java.lang.Object source(groovy.lang.GroovyObject)>");
-        sinks.add("<YouLeftTheDoorOpen: java.lang.Object sink(groovy.lang.GroovyObject,java.lang.Object)>");
+
+    public InfoflowAnalysis(String androidPath, boolean forceAndroidJar, BiDirICFGFactory icfgFactory) {
+        super(androidPath, forceAndroidJar, icfgFactory);
     }
 
     private static SootClass initializeSoot(String className) {
@@ -105,31 +106,25 @@ public class InfoflowAnalysis extends Infoflow {
         return c;
     }
 
-    protected static IInfoflow initInfoflow(boolean useTaintWrapper) {
-        Infoflow result = new Infoflow("", false, null);
-        ConfigForTest testConfig = new ConfigForTest();
-        result.setSootConfig(testConfig);
-        if (useTaintWrapper) {
-            EasyTaintWrapper easyWrapper;
-            try {
-                easyWrapper = new EasyTaintWrapper();
-                result.setTaintWrapper(easyWrapper);
-            } catch (IOException e) {
-                System.err.println("Could not initialized Taintwrapper:");
-                e.printStackTrace();
-            }
-
-        }
-        return result;
-    }
-
     private void runAnalysis(ISourceSinkManager sourcesSinks, IInfoflowCFG iCfg) {
+
+        // Make sure that we have a path builder factory
+        if (pathBuilderFactory == null)
+            pathBuilderFactory = new DefaultPathBuilderFactory(config.getPathConfiguration());
+
+        results = new InfoflowResults();
+        memoryWatcher = new FlowDroidMemoryWatcher(results);
+
         // Create the executor that takes care of the workers
         int numThreads = Runtime.getRuntime().availableProcessors();
         InterruptableExecutor executor = createExecutor(numThreads, true);
 
         // Initialize the memory manager
-        IMemoryManager<Abstraction, Unit> memoryManager = createMemoryManager();
+        FlowDroidMemoryManager.PathDataErasureMode erasureMode = FlowDroidMemoryManager.PathDataErasureMode.EraseAll;
+        erasureMode = FlowDroidMemoryManager.PathDataErasureMode.KeepOnlyContextData;
+        erasureMode = FlowDroidMemoryManager.PathDataErasureMode.EraseNothing;
+        IMemoryManagerFactory memoryManagerFactory = new DefaultMemoryManagerFactory();
+        IMemoryManager<Abstraction, Unit> memoryManager = memoryManagerFactory.getMemoryManager(false, erasureMode);
 
         // Initialize the data flow manager
         manager = new InfoflowManager(config, null, iCfg, sourcesSinks, taintWrapper, hierarchy,
@@ -174,83 +169,106 @@ public class InfoflowAnalysis extends Infoflow {
 
     }
 
-    InfoflowAnalysis(String[] args) throws Exception {
-        super();
+    public void computeInfoflow(String appPath, String libPath,
+                    Collection<String> entryPoints,
+                    Collection<String> sources,
+                    Collection<String> sinks) {
+//
+//        logger.info("Setting classpath to: " + args[0]);
+//        Settings.setAppName(args[0]);
+//        Settings.setOutputDirectory("output");
+//        Settings.setLogLevel(0);
+//
+//        SootClass tgtClass = initializeSoot(Settings.getAppName());
 
-        logger.info("Setting classpath to: " + args[0]);
-        Settings.setAppName(args[0]);
-        Settings.setOutputDirectory("output");
-        Settings.setLogLevel(0);
 
-        SootClass tgtClass = initializeSoot(Settings.getAppName());
-        // "<YouLeftTheDoorOpen: java.lang.Object sensorTriggered(java.lang.Object)>"
-//        SootMethod ep = Scene.v().getMethod(args[1]);
-//        if (ep.isConcrete())
-//            ep.retrieveActiveBody();
-//        else {
-//            logger.debug("Skipping non-concrete method " + ep);
-//            return;
+
+        DefaultEntryPointCreator entryPointCreator = new DefaultEntryPointCreator(entryPoints);
+        initializeSoot(appPath, libPath, entryPointCreator.getRequiredClasses());
+//        Collection<String> classes = entryPointCreator.getRequiredClasses();
+        Set<SootClass> targetClasses = new HashSet<>();
+//
+//        // load all entryPoint classes with their bodies
+//        for (String className : classes)
+//            Scene.v().addBasicClass(className, SootClass.BODIES);
+//        Scene.v().loadNecessaryClasses();
+//        logger.info("Basic class loading done.");
+
+        // Entry point such as "<YouLeftTheDoorOpen: java.lang.Object sensorTriggered(java.lang.Object)>"
+        for (String signature : entryPoints) {
+            SootMethod ep = Scene.v().getMethod(signature);
+            if (ep.isConcrete()) {
+                ep.retrieveActiveBody();
+                Scene.v().setEntryPoints(Collections.singletonList(ep));
+                Options.v().set_main_class(ep.getDeclaringClass().getName());
+                targetClasses.add(ep.getDeclaringClass());
+            } else {
+                logger.debug("Skipping non-concrete method " + ep);
+            }
+        }
+
+//        PackManager.v().getPack("wjpp").apply();
+//        PackManager.v().getPack("cg").apply();
+//        CallGraph callGraph = Scene.v().getCallGraph();
+        for (SootClass targetClass : targetClasses) {
+            Map<Integer, String> callSites = CallGraphResolver.getCallSites(targetClass);
+            System.out.println(callSites);
+
+
+//            logger.info("cg size: " + String.valueOf(callGraph.size()));
+                for (SootMethod method : targetClass.getMethods()) {
+                    if (method.getName().contains("CallSiteArray") || method.getName().matches("run")) {
+                        continue;
+                    }
+                    CallGraphResolver.newCallEdges(method, callSites);
+                }
+
+                for (Body body : CallGraphResolver.newCallSites.keySet()) {
+                    Map<Stmt, Stmt> old2New = CallGraphResolver.newCallSites.get(body);
+                    for (Stmt old : old2New.keySet()) {
+                        Stmt newInvoke = old2New.get(old);
+                        body.getUnits().insertAfter(newInvoke, old);
+//                        Edge edge = new Edge(body.getMethod(), newInvoke, newInvoke.getInvokeExpr().getMethod());
+//                        callGraph.addEdge(edge);
+//                        body.validate();
+                        logger.info(body.getMethod() + ": " + newInvoke);
+                    }
+                }
+        }
+
+        super.computeInfoflow(appPath, libPath, entryPoints, sources, sinks);
+//        logger.info("Callgraph has {} edges", Scene.v().getCallGraph().size());
+//
+//        DefaultBiDiICFGFactory icfgFactory = new DefaultBiDiICFGFactory();
+//        IInfoflowCFG iCfg = icfgFactory.buildBiDirICFG(InfoflowConfiguration.CallgraphAlgorithm.VTA,
+//                false);
+//
+//        // If we don't have a FastHierarchy, we need to create it
+//        hierarchy = Scene.v().getOrMakeFastHierarchy();
+//
+//        DefaultSourceSinkManager ssm = new DefaultSourceSinkManager(sources, sinks);
+////        ssm.setParameterTaintMethods(Collections.singletonList(epoint));
+////        ssm.setReturnTaintMethods(Collections.singletonList(epoint));
+//
+//        // runAnalysis(ssm, iCfg);
+//        runAnalysis(ssm);
+//        logger.info(getResults().toString());
+//
+//        SootMethod sootMethod = tgtClass.getMethod(args[1], new ArrayList<>());
+//        ((JimpleBasedInterproceduralCFG) ((InfoflowCFG) iCfg).getDelegate()).initializeUnitToOwner(sootMethod);
+//
+//        for (Unit unit : sootMethod.getActiveBody().getUnits()) {
+//            Stmt stmt = (Stmt) unit;
+//            logger.info("" + stmt);
 //        }
-//        Scene.v().setEntryPoints(Collections.singletonList(ep));
-//        Options.v().set_main_class(ep.getDeclaringClass().getName());
-
-        PackManager.v().getPack("wjpp").apply();
-        PackManager.v().getPack("cg").apply();
-
-        Map<Integer, String> callSites = CallGraphResolver.getCallSites(tgtClass);
-        System.out.println(callSites);
-        CallGraph callGraph = Scene.v().getCallGraph();
-
-        logger.info("cg size: " + String.valueOf(callGraph.size()));
-
-        for (SootMethod method : tgtClass.getMethods()) {
-            if (method.getName().contains("CallSiteArray") || method.getName().matches("run")) {
-                continue;
-            }
-            CallGraphResolver.addCallEdges(method, callSites);
-        }
-
-        for (Body body : CallGraphResolver.newCallSites.keySet()) {
-            Map<Stmt, Stmt> old2New = CallGraphResolver.newCallSites.get(body);
-            for (Stmt old : old2New.keySet()) {
-                Stmt newInvoke = old2New.get(old);
-                body.getUnits().insertAfter(newInvoke, old);
-                Edge edge = new Edge(body.getMethod(), newInvoke, newInvoke.getInvokeExpr().getMethod());
-                callGraph.addEdge(edge);
-                body.validate();
-                logger.info(body.getMethod() + ": " + newInvoke);
-            }
-        }
-        logger.info("Callgraph has {} edges", Scene.v().getCallGraph().size());
-
-        DefaultBiDiICFGFactory icfgFactory = new DefaultBiDiICFGFactory();
-        IInfoflowCFG iCfg = icfgFactory.buildBiDirICFG(InfoflowConfiguration.CallgraphAlgorithm.VTA,
-                false);
-
-        // If we don't have a FastHierarchy, we need to create it
-        hierarchy = Scene.v().getOrMakeFastHierarchy();
-
-        DefaultSourceSinkManager ssm = new DefaultSourceSinkManager(sources, sinks);
-//        ssm.setParameterTaintMethods(Collections.singletonList(epoint));
-//        ssm.setReturnTaintMethods(Collections.singletonList(epoint));
-
-        // runAnalysis(ssm, iCfg);
-
-        SootMethod sootMethod = tgtClass.getMethod(args[1], new ArrayList<>());
-        ((JimpleBasedInterproceduralCFG) ((InfoflowCFG) iCfg).getDelegate()).initializeUnitToOwner(sootMethod);
-
-        for (Unit unit : sootMethod.getActiveBody().getUnits()) {
-            Stmt stmt = (Stmt) unit;
-            logger.info("" + stmt);
-        }
-        for (Unit unit : sootMethod.getActiveBody().getUnits()) {
-            Stmt stmt = (Stmt) unit;
-            // Get the conditional.
-            if (stmt instanceof IfStmt) {
-                logger.info("IF: " + stmt);
-                logger.info("post: " + iCfg.getPostdominatorOf(stmt).getUnit());
-            }
-        }
+//        for (Unit unit : sootMethod.getActiveBody().getUnits()) {
+//            Stmt stmt = (Stmt) unit;
+//            // Get the conditional.
+//            if (stmt instanceof IfStmt) {
+//                logger.info("IF: " + stmt);
+//                logger.info("post: " + iCfg.getPostdominatorOf(stmt).getUnit());
+//            }
+//        }
     }
 
 }

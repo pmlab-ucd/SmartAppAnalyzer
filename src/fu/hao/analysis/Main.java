@@ -21,7 +21,7 @@ public class Main extends Infoflow {
             System.exit(0);
         }
 
-        InfoflowAnalysis infoflowAnalysis = new InfoflowAnalysis(args);
+        // InfoflowAnalysis infoflowAnalysis = new InfoflowAnalysis(args);
     }
 
 }
