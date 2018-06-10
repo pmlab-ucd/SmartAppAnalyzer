@@ -43,156 +43,18 @@ public class InfoflowAnalysis extends Infoflow {
 
     private static final Logger logger = LoggerFactory.getLogger(InfoflowAnalysis.class);
 
-    public static List<String> entry_points = new ArrayList<>();
-    public static List<String> sources = new ArrayList<>();
-    public static List<String> sinks = new ArrayList<>();
-
     public InfoflowAnalysis(String androidPath, boolean forceAndroidJar, BiDirICFGFactory icfgFactory) {
         super(androidPath, forceAndroidJar, icfgFactory);
-    }
-
-    private static SootClass initializeSoot(String className) {
-        // reset Soot:
-        soot.G.reset();
-
-        String sep = File.separator;
-        String pathSep = File.pathSeparator;
-        String path = "lib/rt.jar"; //System.getProperty("java.home") + sep + "lib" + sep + "rt.jar";
-        path += pathSep + "." + sep + "out\\test\\SmartAppAnalyzer";
-        path += pathSep + "lib/groovy-all-2.2.0-beta-1.jar";
-        // path += pathSep + args[0];
-        Options.v().set_soot_classpath(path);
-
-        Options.v().set_no_bodies_for_excluded(true);
-        Options.v().set_allow_phantom_refs(true);
-        Options.v().set_output_format(Options.output_format_jimple);
-
-        // Configure the callgraph algorithm
-        Options.v().setPhaseOption("cg.spark", "on");
-        Options.v().setPhaseOption("cg.spark", "vta:true");
-        Options.v().setPhaseOption("cg.spark", "string-constants:true");
-
-        // Specify additional options required for the callgraph
-        Options.v().set_whole_program(true);
-        Options.v().setPhaseOption("cg", "trim-clinit:false");
-        Options.v().setPhaseOption("cg", "types-for-invoke:true");
-
-        // do not merge variables (causes problems with PointsToSets)
-        Options.v().setPhaseOption("jb.ulp", "off");
-
-        // load all entryPoint classes with their bodies
-        Scene.v().addBasicClass(className, SootClass.BODIES);
-        Scene.v().loadNecessaryClasses();
-        logger.info("Basic class loading done.");
-
-        SootClass c = Scene.v().forceResolve(className, SootClass.BODIES);
-        if (c != null) {
-            c.setApplicationClass();
-            if (c.isPhantomClass() || c.isPhantom()) {
-                logger.info("Only phantom classes loaded, skipping analysis...");
-            }
-        }
-
-        // do not merge variables (causes problems with PointsToSets)
-        Options.v().setPhaseOption("jb.ulp", "off");
-
-        // To cope with broken APK files, we convert all classes that are still
-        // dangling after resolution into phantoms
-        Scene.v().getClasses().stream().filter(sc -> sc.resolvingLevel() == SootClass.DANGLING).forEach(sc -> {
-            sc.setResolvingLevel(SootClass.BODIES);
-            sc.setPhantomClass();
-        });
-
-        return c;
-    }
-
-    private void runAnalysis(ISourceSinkManager sourcesSinks, IInfoflowCFG iCfg) {
-
-        // Make sure that we have a path builder factory
-        if (pathBuilderFactory == null)
-            pathBuilderFactory = new DefaultPathBuilderFactory(config.getPathConfiguration());
-
-        results = new InfoflowResults();
-        memoryWatcher = new FlowDroidMemoryWatcher(results);
-
-        // Create the executor that takes care of the workers
-        int numThreads = Runtime.getRuntime().availableProcessors();
-        InterruptableExecutor executor = createExecutor(numThreads, true);
-
-        // Initialize the memory manager
-        FlowDroidMemoryManager.PathDataErasureMode erasureMode = FlowDroidMemoryManager.PathDataErasureMode.EraseAll;
-        erasureMode = FlowDroidMemoryManager.PathDataErasureMode.KeepOnlyContextData;
-        erasureMode = FlowDroidMemoryManager.PathDataErasureMode.EraseNothing;
-        IMemoryManagerFactory memoryManagerFactory = new DefaultMemoryManagerFactory();
-        IMemoryManager<Abstraction, Unit> memoryManager = memoryManagerFactory.getMemoryManager(false, erasureMode);
-
-        // Initialize the data flow manager
-        manager = new InfoflowManager(config, null, iCfg, sourcesSinks, taintWrapper, hierarchy,
-                new AccessPathFactory(config));
-
-        // Initialize the alias analysis
-        IAliasingStrategy aliasingStrategy = createAliasAnalysis(sourcesSinks, iCfg, executor, memoryManager);
-
-        // Get the zero fact
-        Abstraction zeroValue = aliasingStrategy.getSolver() != null
-                ? aliasingStrategy.getSolver().getTabulationProblem().createZeroValue() : null;
-
-        // Initialize the aliasing infrastructure
-        Aliasing aliasing = new Aliasing(aliasingStrategy, manager);
-        if (dummyMainMethod != null)
-            aliasing.excludeMethodFromMustAlias(dummyMainMethod);
-
-        // Initialize the data flow problem
-        InfoflowProblem forwardProblem = new InfoflowProblem(manager, aliasingStrategy, aliasing, zeroValue);
-
-        // We need to create the right data flow solver
-        IInfoflowSolver forwardSolver = createForwardSolver(executor, forwardProblem);
-
-        // Set the options
-        manager.setForwardSolver(forwardSolver);
-        if (aliasingStrategy.getSolver() != null)
-            aliasingStrategy.getSolver().getTabulationProblem().getManager().setForwardSolver(forwardSolver);
-
-        // memoryWatcher.addSolver((IMemoryBoundedSolver) forwardSolver);
-
-        forwardSolver.setMemoryManager(memoryManager);
-        // forwardSolver.setEnableMergePointChecking(true);
-
-        // forwardProblem.setTaintPropagationHandler(taintPropagationHandler);
-        forwardProblem.setTaintWrapper(taintWrapper);
-        if (nativeCallHandler != null)
-            forwardProblem.setNativeCallHandler(nativeCallHandler);
-
-        if (aliasingStrategy.getSolver() != null) {
-            aliasingStrategy.getSolver().getTabulationProblem().setActivationUnitsToCallSites(forwardProblem);
-        }
-
     }
 
     public void computeInfoflow(String appPath, String libPath,
                     Collection<String> entryPoints,
                     Collection<String> sources,
                     Collection<String> sinks) {
-//
-//        logger.info("Setting classpath to: " + args[0]);
-//        Settings.setAppName(args[0]);
-//        Settings.setOutputDirectory("output");
-//        Settings.setLogLevel(0);
-//
-//        SootClass tgtClass = initializeSoot(Settings.getAppName());
-
-
 
         DefaultEntryPointCreator entryPointCreator = new DefaultEntryPointCreator(entryPoints);
         initializeSoot(appPath, libPath, entryPointCreator.getRequiredClasses());
-//        Collection<String> classes = entryPointCreator.getRequiredClasses();
         Set<SootClass> targetClasses = new HashSet<>();
-//
-//        // load all entryPoint classes with their bodies
-//        for (String className : classes)
-//            Scene.v().addBasicClass(className, SootClass.BODIES);
-//        Scene.v().loadNecessaryClasses();
-//        logger.info("Basic class loading done.");
 
         // Entry point such as "<YouLeftTheDoorOpen: java.lang.Object sensorTriggered(java.lang.Object)>"
         for (String signature : entryPoints) {
@@ -207,15 +69,11 @@ public class InfoflowAnalysis extends Infoflow {
             }
         }
 
-//        PackManager.v().getPack("wjpp").apply();
-//        PackManager.v().getPack("cg").apply();
-//        CallGraph callGraph = Scene.v().getCallGraph();
         for (SootClass targetClass : targetClasses) {
             Map<Integer, String> callSites = CallGraphResolver.getCallSites(targetClass);
             System.out.println(callSites);
 
 
-//            logger.info("cg size: " + String.valueOf(callGraph.size()));
                 for (SootMethod method : targetClass.getMethods()) {
                     if (method.getName().contains("CallSiteArray") || method.getName().matches("run")) {
                         continue;

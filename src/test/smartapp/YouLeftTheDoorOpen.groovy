@@ -61,11 +61,12 @@ def sensorTriggered(evt) {
         def delay = maxOpenTime * 60
         runIn(delay, takeAction, [overwrite: false])
         state.status = "scheduled"
+        state.status = booleanSource()
     }
 }
 
 def takeAction(){
-    sink(state.status)
+    booleanSink(state.status)
     if (state.status == "scheduled")
     {
         log.debug "$theSensor was open too long, sending message"
