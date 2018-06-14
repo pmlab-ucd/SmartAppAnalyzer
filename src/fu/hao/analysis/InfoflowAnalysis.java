@@ -5,7 +5,9 @@ import fu.hao.utils.Settings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import soot.*;
+import soot.jimple.AssignStmt;
 import soot.jimple.IfStmt;
+import soot.jimple.Jimple;
 import soot.jimple.Stmt;
 import soot.jimple.infoflow.Infoflow;
 import soot.jimple.infoflow.InfoflowConfiguration;
@@ -48,13 +50,21 @@ public class InfoflowAnalysis extends Infoflow {
     }
 
     public void computeInfoflow(String appPath, String libPath,
-                    Collection<String> entryPoints,
-                    Collection<String> sources,
-                    Collection<String> sinks) {
+                                Collection<String> entryPoints,
+                                Collection<String> sources,
+                                Collection<String> sinks) {
 
         DefaultEntryPointCreator entryPointCreator = new DefaultEntryPointCreator(entryPoints);
         initializeSoot(appPath, libPath, entryPointCreator.getRequiredClasses());
         Set<SootClass> targetClasses = new HashSet<>();
+
+//        for (SootClass sootClass : Scene.v().getClasses()) {
+//            for (SootMethod sootMethod : sootClass.getMethods()) {
+//                if (sootMethod.getSignature().contains("You")) {
+//                    logger.info(sootMethod.getSignature());
+//                }
+//            }
+//        }
 
         // Entry point such as "<YouLeftTheDoorOpen: java.lang.Object sensorTriggered(java.lang.Object)>"
         for (String signature : entryPoints) {
@@ -69,32 +79,46 @@ public class InfoflowAnalysis extends Infoflow {
             }
         }
 
+//        SootField newField = new SootField("field", BooleanType.v(), Modifier.STATIC);
+//        Scene.v().getMainClass().addField(newField);
+//        AssignStmt toAdd1 = Jimple.v().newAssignStmt(null,
+//                Jimple.v().newStaticFieldRef(newField.makeRef()));
         for (SootClass targetClass : targetClasses) {
             Map<Integer, String> callSites = CallGraphResolver.getCallSites(targetClass);
             System.out.println(callSites);
 
-
-                for (SootMethod method : targetClass.getMethods()) {
-                    if (method.getName().contains("CallSiteArray") || method.getName().matches("run")) {
-                        continue;
-                    }
-                    CallGraphResolver.newCallEdges(method, callSites);
+            for (SootMethod method : targetClass.getMethods()) {
+                if (method.getName().contains("CallSiteArray") || method.getName().matches("run")) {
+                    continue;
                 }
+                CallGraphResolver.newCallEdges(method, callSites);
+            }
 
-                for (Body body : CallGraphResolver.newCallSites.keySet()) {
-                    Map<Stmt, Stmt> old2New = CallGraphResolver.newCallSites.get(body);
-                    for (Stmt old : old2New.keySet()) {
-                        Stmt newInvoke = old2New.get(old);
-                        body.getUnits().insertAfter(newInvoke, old);
+            for (Body body : CallGraphResolver.newCallSites.keySet()) {
+                Map<Stmt, Stmt> old2New = CallGraphResolver.newCallSites.get(body);
+                for (Stmt old : old2New.keySet()) {
+                    Stmt newInvoke = old2New.get(old);
+                    body.getUnits().insertAfter(newInvoke, old);
 //                        Edge edge = new Edge(body.getMethod(), newInvoke, newInvoke.getInvokeExpr().getMethod());
 //                        callGraph.addEdge(edge);
 //                        body.validate();
-                        logger.info(body.getMethod() + ": " + newInvoke);
-                    }
+                    logger.info(body.getMethod() + ": " + newInvoke);
                 }
+            }
         }
 
-        super.computeInfoflow(appPath, libPath, entryPoints, sources, sinks);
+        for (String signature : entryPoints) {
+            SootMethod ep = Scene.v().getMethod(signature);
+            if (ep.isConcrete()) {
+                for (Unit unit : ep.getActiveBody().getUnits()) {
+                    logger.info("" + unit);
+                }
+            } else {
+                logger.debug("Skipping non-concrete method " + ep);
+            }
+        }
+
+        // super.computeInfoflow(appPath, libPath, entryPoints, sources, sinks);
 //        logger.info("Callgraph has {} edges", Scene.v().getCallGraph().size());
 //
 //        DefaultBiDiICFGFactory icfgFactory = new DefaultBiDiICFGFactory();
