@@ -3,10 +3,12 @@ import java.util.Random;
 /**
  * Created by hfu on 8/22/2017.
  */
+class State {
+    static boolean status = false;
+}
 
 public class MyClass {
-
-    static boolean status = false;
+    static State state = new State();
 
     private void myMethod() {
         int x, a, b;
@@ -30,14 +32,14 @@ public class MyClass {
     private void implicitFlow1() {
         int env = source();
         if (env == 42) {
-            status = booleanSource();
+            state.status = booleanSource();
             implicitFlow2();
         }
     }
 
     private void implicitFlow2() {
-        if (status) {
-            booleanSink(status);
+        if (state.status) {
+            booleanSink(state.status);
             System.out.println("implicit");
         }
     }

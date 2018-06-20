@@ -1,36 +1,37 @@
 package fu.hao.analysis;
 
-import soot.Local;
-import soot.Unit;
-import soot.Value;
-import soot.ValueBox;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import soot.*;
 import soot.jimple.AssignStmt;
-import soot.jimple.InvokeExpr;
 import soot.jimple.Stmt;
 import soot.toolkits.graph.DirectedGraph;
 import soot.toolkits.scalar.ArraySparseSet;
 import soot.toolkits.scalar.FlowSet;
 import soot.toolkits.scalar.ForwardFlowAnalysis;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 /**
- * Description: Track the propagation of a call site value in a class
+ * Description: Backwardly track the source of parameter of setProperty.
  *
  * @author Hao Fu(haofu@ucdavis.edu)
- * @since 11/9/2016
+ * @since 6/14/2018
  */
-public class DataForwardTracer extends ForwardFlowAnalysis<Object, Object> {
-    private Stmt srcStmt;
-    private List<Stmt> slice = new ArrayList<>();
+public class BasicForwardFlowAnalysis extends ForwardFlowAnalysis<Object, Object> {
+    private static final Logger logger = LoggerFactory.getLogger(BasicForwardFlowAnalysis.class);
+
+    protected Stmt srcStmt;
+    protected SootMethod thisMethod;
+    protected String name;
 
     @SuppressWarnings("unchecked")
-    public DataForwardTracer(DirectedGraph<?> exceptionalUnitGraph, Stmt srcStmt) {
-        // use superclass's constructor
+    public BasicForwardFlowAnalysis(DirectedGraph<?> exceptionalUnitGraph, Stmt srcStmt, String name, SootMethod thisMethod) {
+        // Use superclass's constructor.
         super((DirectedGraph<Object>) exceptionalUnitGraph);
         this.srcStmt = srcStmt;
-        doAnalysis();
+        this.thisMethod = thisMethod;
+        this.name = name;
     }
 
     @Override
@@ -38,6 +39,7 @@ public class DataForwardTracer extends ForwardFlowAnalysis<Object, Object> {
         return new ArraySparseSet();
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     protected void copy(Object src, Object dest) {
         FlowSet srcSet = (FlowSet) src,
@@ -50,30 +52,32 @@ public class DataForwardTracer extends ForwardFlowAnalysis<Object, Object> {
         return new ArraySparseSet();
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     protected void flowThrough(Object in, Object node, Object out) {
         Unit unit = (Unit) node;
-        FlowSet<Local> inSet = (FlowSet<Local>) in,
-                outSet = (FlowSet<Local>) out;
-        checkBefore(unit, inSet, outSet);
-        if (!gen(inSet, unit, outSet)) {
-            kill(unit, outSet);
-        }
+        if (in instanceof FlowSet && out instanceof FlowSet) {
+            FlowSet<Value> inSet = (FlowSet<Value>) in;
+            FlowSet<Value> outSet = (FlowSet<Value>) out;
+            checkBefore(unit, inSet, outSet);
+            if (!gen(inSet, unit, outSet)) {
+                kill(unit, outSet);
+            }
 
-        checkAfter(unit, outSet);
+            checkAfter(unit, outSet);
+        }
     }
 
     /*
-		 * rm tainted var who has been assigned value from un-tainted
-		 */
-    private void kill(Object node, Object out) {
-        FlowSet	outSet = (FlowSet)out;
-        Unit unit = (Unit)node;
+     * rm tainted var who has been assigned value from un-tainted
+     */
+    protected void kill(Object node, FlowSet<Value> outSet) {
+        Unit unit = (Unit) node;
         if (unit instanceof AssignStmt) {
             for (ValueBox defBox : unit.getDefBoxes()) {
                 Value value = defBox.getValue();
                 if (value instanceof Local && outSet.contains(value)) {
-                    System.out.println("Kill here! " + unit);
+                    logger.debug("Kill here! " + unit);
                     outSet.remove(value);
                 }
             }
@@ -83,28 +87,33 @@ public class DataForwardTracer extends ForwardFlowAnalysis<Object, Object> {
     protected void checkBefore(Unit unit, FlowSet inSet, FlowSet outSet) {
 
     }
-    protected void checkAfter(Unit unit, FlowSet outSet) {
 
+    /**
+     * If the call site reg invokes a call, add a new call graph edge.
+     * @param unit   current statement
+     * @param outSet output set
+     */
+    protected void checkAfter(Unit unit, FlowSet<Value> outSet) {
     }
 
+    @SuppressWarnings("unchecked")
     /*
      * add vars possibly tainted
      */
     protected boolean gen(Object in, Object node, Object out) {
-        FlowSet inSet = (FlowSet)in,
-                outSet = (FlowSet)out;
-        Unit unit = (Unit)node;
+        FlowSet inSet = (FlowSet) in,
+                outSet = (FlowSet) out;
+        Unit unit = (Unit) node;
         copy(inSet, outSet);
         boolean hasTainted = false;
-        Stmt stmt = (Stmt)unit;
+        Stmt stmt = (Stmt) unit;
 
         if (unit instanceof AssignStmt) {
             // if returned by source()
             if (unit.equals(srcStmt)) {
-                System.out.print("Found Source! " + unit);
+                logger.debug("Found Source! " + unit);
                 addDefBox(unit, outSet);
                 hasTainted = true;
-                slice.add(stmt);
             }
         }
 
@@ -113,7 +122,6 @@ public class DataForwardTracer extends ForwardFlowAnalysis<Object, Object> {
             if (inSet.contains(useVal)) {
                 addDefBox(unit, outSet);
                 hasTainted = true;
-                slice.add(stmt);
                 break;
             }
         }
@@ -121,6 +129,7 @@ public class DataForwardTracer extends ForwardFlowAnalysis<Object, Object> {
         return hasTainted;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     protected void merge(Object in1, Object in2, Object out) {
         FlowSet inSet1 = (FlowSet) in1,
@@ -141,6 +150,7 @@ public class DataForwardTracer extends ForwardFlowAnalysis<Object, Object> {
         return ((ArraySparseSet) getFlowBefore(s)).toList();
     }
 
+    @SuppressWarnings("unchecked")
     protected void addDefBox(Unit unit, FlowSet outSet) {
         for (ValueBox defBox : unit.getDefBoxes()) {
             Value value = defBox.getValue();
@@ -150,6 +160,7 @@ public class DataForwardTracer extends ForwardFlowAnalysis<Object, Object> {
         }
     }
 
+    @SuppressWarnings("unchecked")
     protected boolean leftTaintedAsRightTainted(Unit unit, FlowSet inSet, FlowSet outSet) {
         for (ValueBox useBox : unit.getUseBoxes()) {
             Value useVal = useBox.getValue();
@@ -161,10 +172,5 @@ public class DataForwardTracer extends ForwardFlowAnalysis<Object, Object> {
 
         return false;
     }
-
-    public List<Stmt> getSlice() {
-        return slice;
-    }
-
 
 }

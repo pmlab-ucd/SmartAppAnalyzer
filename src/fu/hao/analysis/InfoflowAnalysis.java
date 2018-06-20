@@ -1,6 +1,8 @@
 package fu.hao.analysis;
 
 import fu.hao.analysis.cg.CallGraphResolver;
+import fu.hao.analysis.field.PropertyResolver;
+import fu.hao.analysis.field.PropertyTracker;
 import fu.hao.utils.Settings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,6 +55,8 @@ public class InfoflowAnalysis extends Infoflow {
                                 Collection<String> entryPoints,
                                 Collection<String> sources,
                                 Collection<String> sinks) {
+        // logger.info("Resetting Soot...");
+        // soot.G.reset();
 
         DefaultEntryPointCreator entryPointCreator = new DefaultEntryPointCreator(entryPoints);
         initializeSoot(appPath, libPath, entryPointCreator.getRequiredClasses());
@@ -83,6 +87,8 @@ public class InfoflowAnalysis extends Infoflow {
 //        Scene.v().getMainClass().addField(newField);
 //        AssignStmt toAdd1 = Jimple.v().newAssignStmt(null,
 //                Jimple.v().newStaticFieldRef(newField.makeRef()));
+        CallGraphResolver callGraphResolver = new CallGraphResolver();
+        PropertyResolver propertyResolver = new PropertyResolver();
         for (SootClass targetClass : targetClasses) {
             Map<Integer, String> callSites = CallGraphResolver.getCallSites(targetClass);
             System.out.println(callSites);
@@ -91,18 +97,29 @@ public class InfoflowAnalysis extends Infoflow {
                 if (method.getName().contains("CallSiteArray") || method.getName().matches("run")) {
                     continue;
                 }
-                CallGraphResolver.newCallEdges(method, callSites);
+                callGraphResolver.deriveNewStmts(method, callSites);
+                propertyResolver.deriveNewStmts(method, callSites);
             }
-
-            for (Body body : CallGraphResolver.newCallSites.keySet()) {
-                Map<Stmt, Stmt> old2New = CallGraphResolver.newCallSites.get(body);
+            Map<Body, Map<Stmt, Stmt>> old2NewStmts = callGraphResolver.getOld2NewStmts();
+            for (Body body : old2NewStmts.keySet()) {
+                Map<Stmt, Stmt> old2New = old2NewStmts.get(body);
                 for (Stmt old : old2New.keySet()) {
                     Stmt newInvoke = old2New.get(old);
                     body.getUnits().insertAfter(newInvoke, old);
 //                        Edge edge = new Edge(body.getMethod(), newInvoke, newInvoke.getInvokeExpr().getMethod());
 //                        callGraph.addEdge(edge);
 //                        body.validate();
-                    logger.info(body.getMethod() + ": " + newInvoke);
+                    logger.info("New call: " + body.getMethod() + ": " + newInvoke);
+                }
+            }
+            old2NewStmts = propertyResolver.getOld2NewStmts();
+            for (Body body : old2NewStmts.keySet()) {
+                Map<Stmt, Stmt> old2New = old2NewStmts.get(body);
+                for (Stmt old : old2New.keySet()) {
+                    Stmt newInvoke = old2New.get(old);
+                    logger.info("New stmt: " + body.getMethod() + ": " + old + ": " + newInvoke);
+                    body.getUnits().insertAfter(newInvoke, old);
+
                 }
             }
         }
@@ -111,14 +128,14 @@ public class InfoflowAnalysis extends Infoflow {
             SootMethod ep = Scene.v().getMethod(signature);
             if (ep.isConcrete()) {
                 for (Unit unit : ep.getActiveBody().getUnits()) {
-                    logger.info("" + unit);
+                    logger.info(signature + ": " + unit);
                 }
             } else {
                 logger.debug("Skipping non-concrete method " + ep);
             }
         }
 
-        // super.computeInfoflow(appPath, libPath, entryPoints, sources, sinks);
+        super.computeInfoflow(appPath, libPath, entryPoints, sources, sinks);
 //        logger.info("Callgraph has {} edges", Scene.v().getCallGraph().size());
 //
 //        DefaultBiDiICFGFactory icfgFactory = new DefaultBiDiICFGFactory();
